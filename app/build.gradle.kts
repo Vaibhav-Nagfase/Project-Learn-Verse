@@ -41,6 +41,18 @@ android {
 
 dependencies {
 
+    implementation("com.squareup.retrofit2:retrofit:2.11.0")
+    implementation("com.squareup.retrofit2:converter-gson:2.11.0")
+    implementation("com.squareup.okhttp3:logging-interceptor:5.0.0-alpha.14")
+    implementation("androidx.datastore:datastore-preferences:1.1.1")
+
+    val nav_version = "2.7.5"
+    val compose_version = "1.6.0-alpha08"
+    implementation("androidx.navigation:navigation-compose:$nav_version")
+    implementation("androidx.compose.ui:ui:$compose_version")
+    implementation("androidx.compose.material:material:$compose_version")
+    implementation("androidx.compose.ui:ui-tooling-preview:$compose_version")
+
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
