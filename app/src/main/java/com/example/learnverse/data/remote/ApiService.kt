@@ -7,6 +7,7 @@ import retrofit2.http.GET
 import retrofit2.http.Header
 import retrofit2.http.POST
 import retrofit2.http.Query
+import retrofit2.http.QueryMap
 
 interface ApiService {
 
@@ -33,4 +34,10 @@ interface ApiService {
         @Header("Authorization") token: String,
         @Query("search") query: String
     ): Response<List<Activity>>
+
+    @GET("api/activities/filter")
+    suspend fun filterActivities(
+        @Header("Authorization") token: String,
+        @QueryMap filters: Map<String, String> // Pass all filters as a map
+    ): Response<PagedResponse<Activity>>
 }

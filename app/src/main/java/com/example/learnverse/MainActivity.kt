@@ -33,11 +33,14 @@ import com.example.learnverse.ui.screen.auth.LoginScreen
 import com.example.learnverse.ui.screen.auth.SignUpScreen
 import com.example.learnverse.ui.screen.home.HomeScreen
 import com.example.learnverse.ui.screen.detail.ActivityDetailScreen
+import com.example.learnverse.ui.screen.filter.FilterScreen
 import com.example.learnverse.ui.screen.search.SearchScreen
 import com.example.learnverse.viewmodel.ActivitiesViewModel
 import com.example.learnverse.viewmodel.ActivitiesViewModelFactory
 import com.example.learnverse.viewmodel.AuthState
 import com.example.learnverse.viewmodel.AuthViewModelFactory
+import com.example.learnverse.viewmodel.FilterViewModel
+import com.example.learnverse.viewmodel.FilterViewModelFactory
 
 
 class MainActivity : ComponentActivity() {
@@ -73,6 +76,11 @@ fun LearnVerseApp() {
         factory = ActivitiesViewModelFactory(activitiesRepository, context)
     )
 
+    // Filter ViewModel Setup
+    val filterViewModel: FilterViewModel = viewModel(
+        factory = FilterViewModelFactory(activitiesRepository, context)
+    )
+
     // Observe the single source of truth for navigation
     val authState by authViewModel.authState.collectAsState()
 
@@ -101,7 +109,8 @@ fun LearnVerseApp() {
             MainNavGraph(
                 authViewModel = authViewModel,
                 activitiesViewModel = activitiesViewModel,
-                startDestination = startRoute
+                startDestination = startRoute,
+                filterViewModel = filterViewModel
             )
         }
     }
@@ -121,7 +130,8 @@ fun LoginNavGraph(authViewModel: AuthViewModel) {
 @Composable
 fun MainNavGraph(authViewModel: AuthViewModel,
                  activitiesViewModel: ActivitiesViewModel,
-                 startDestination: String ) {
+                 startDestination: String,
+                 filterViewModel: FilterViewModel) {
 
     val navController = rememberNavController()
     // The start destination is now "feed" which will be our repurposed SearchScreen
@@ -139,7 +149,6 @@ fun MainNavGraph(authViewModel: AuthViewModel,
             HomeScreen(navController, authViewModel, activitiesViewModel)
         }
 
-        // --- THIS ROUTE IS UPDATED ---
         composable("activityDetail/{activityId}") { backStackEntry ->
             // 1. Get the activityId from the navigation route
             val activityId = backStackEntry.arguments?.getString("activityId") ?: ""
@@ -151,6 +160,10 @@ fun MainNavGraph(authViewModel: AuthViewModel,
                 activitiesViewModel = activitiesViewModel,
                 navController = navController
             )
+        }
+
+        composable("filter") {
+            FilterScreen(navController = navController, viewModel = filterViewModel)
         }
 
     }

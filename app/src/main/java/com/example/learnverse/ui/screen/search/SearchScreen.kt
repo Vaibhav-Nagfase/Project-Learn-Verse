@@ -13,6 +13,7 @@ import androidx.compose.material.icons.filled.* // Import all default icons
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -20,6 +21,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import androidx.compose.runtime.getValue
 import androidx.navigation.NavController
 import com.example.learnverse.data.model.Activity
 import com.example.learnverse.viewmodel.ActivitiesViewModel
@@ -33,6 +35,24 @@ fun SearchScreen(
     authViewModel: AuthViewModel
 ) {
 
+    // --- THIS BLOCK to listen for results from the FilterScreen ---
+    val filterResult = navController.currentBackStackEntry
+        ?.savedStateHandle
+        ?.getLiveData<List<Activity>>("filtered_activities")
+        ?.observeAsState()
+
+    // When a result is received, update the ViewModel's list
+    LaunchedEffect(filterResult) {
+        filterResult?.value?.let { activities ->
+            activitiesViewModel.updateActivitiesList(activities)
+            // Clear the result so it's not processed again on recomposition
+            navController.currentBackStackEntry
+                ?.savedStateHandle
+                ?.remove<List<Activity>>("filtered_activities")
+        }
+    }
+
+
     var showLogoutDialog by remember { mutableStateOf(false) }
 
     // THIS IS THE ONLY LaunchedEffect NEEDED FOR INITIAL LOAD
@@ -44,6 +64,8 @@ fun SearchScreen(
     val activities = activitiesViewModel.activities
     val searchQuery = activitiesViewModel.searchQuery
     val isLoading = activitiesViewModel.isLoading
+
+    val isFiltered by activitiesViewModel.isFiltered
 
     Column(modifier = Modifier
         .fillMaxSize()
@@ -76,10 +98,34 @@ fun SearchScreen(
             }
         }
 
+        // --- Row for the Filter Button ---
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.End,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (isFiltered) {
+                OutlinedButton(onClick = { activitiesViewModel.fetchMyFeed(forceRefresh = true) }) {
+                    Text("Reset")
+                }
+                Spacer(Modifier.width(8.dp))
+            }
+
+            TextButton(onClick = { navController.navigate("filter") }) {
+                Icon(Icons.Default.FilterList, contentDescription = "Filter")
+                Spacer(Modifier.width(8.dp))
+                Text("Filters")
+            }
+        }
+
+
         if (showLogoutDialog) {
             LogoutConfirmationDialog(
                 onConfirm = {
                     showLogoutDialog = false
+                    activitiesViewModel.clearData()
                     authViewModel.logout()
                 },
                 onDismiss = { showLogoutDialog = false }
@@ -106,7 +152,6 @@ fun SearchScreen(
     }
 }
 
-// ActivityResultCard and LogoutConfirmationDialog composables remain the same...
 
 @Composable
 fun ActivityResultCard(activity: Activity, onClick: () -> Unit) {
