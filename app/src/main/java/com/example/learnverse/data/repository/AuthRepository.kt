@@ -26,10 +26,25 @@ class AuthRepository(private val api: ApiService, private val context: Context) 
         throw Exception("Login failed: ${response.message()}")
     }
 
+    suspend fun getUserInterests(token: String): UserInterestsResponse {
+        val response = api.getUserInterests("Bearer $token")
+        if (response.isSuccessful && response.body() != null) {
+            return response.body()!!
+        }
+        throw Exception("Failed to get user interests")
+    }
+
     suspend fun addUserInterests(token: String, interests: List<String>) {
-        val response = api.addUserInterests("Bearer $token", InterestsRequest(interests))
+        val response = api.addUserInterests("Bearer $token", InterestsUpdateRequest(interests))
         if (!response.isSuccessful) {
             throw Exception("Failed to add interests: ${response.code()} ${response.message()}")
+        }
+    }
+
+    suspend fun removeUserInterests(token: String, interests: List<String>) {
+        val response = api.removeUserInterests("Bearer $token", InterestsUpdateRequest(interests))
+        if (!response.isSuccessful) {
+            throw Exception("Failed to remove interests")
         }
     }
 

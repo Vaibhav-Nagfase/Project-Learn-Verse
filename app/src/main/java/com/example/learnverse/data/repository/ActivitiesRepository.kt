@@ -2,6 +2,7 @@ package com.example.learnverse.data.repository
 
 import com.example.learnverse.data.model.Activity
 import com.example.learnverse.data.model.ActivityFilter
+import com.example.learnverse.data.model.NaturalSearchRequest
 import com.example.learnverse.data.remote.ApiService
 
 class ActivitiesRepository(private val api: ApiService) {
@@ -36,6 +37,7 @@ class ActivitiesRepository(private val api: ApiService) {
         filter.demoAvailable?.let { filterMap["demoAvailable"] = it.toString() }
         filter.sortBy?.let { filterMap["sortBy"] = it }
         filter.sortDirection?.let { filterMap["sortDirection"] = it }
+        filter.searchQuery?.let { if (it.isNotBlank()) filterMap["searchQuery"] = it }
 
         // Make the API call with the constructed map
         val response = api.filterActivities("Bearer $token", filterMap)
@@ -47,4 +49,21 @@ class ActivitiesRepository(private val api: ApiService) {
 
         throw Exception("Failed to apply filters: ${response.message()}")
     }
+
+    suspend fun getNearbyActivities(token: String, latitude: Double, longitude: Double): List<Activity> {
+        val response = api.getNearbyActivities("Bearer $token", latitude, longitude)
+        if (response.isSuccessful && response.body() != null) {
+            return response.body()!!.content
+        }
+        throw Exception("Failed to get nearby activities: ${response.message()}")
+    }
+
+    suspend fun naturalSearch(token: String, request: NaturalSearchRequest): List<Activity> {
+        val response = api.naturalSearch("Bearer $token", request)
+        if (response.isSuccessful && response.body() != null) {
+            return response.body()!!.content
+        }
+        throw Exception("Natural search failed: ${response.message()}")
+    }
+
 }

@@ -116,20 +116,25 @@ fun ActivityDetailContent(activity: Activity, modifier: Modifier = Modifier) {
             }
         }
 
-        // --- Pricing Section ---
+        // --- Pricing Section (Null-Safe) ---
         item {
             DetailSection(title = "Pricing") {
-                val priceText = activity.pricing.discountPrice?.let {
-                    "Discounted Price: ${activity.pricing.currency} $it (Original: ${activity.pricing.price})"
-                } ?: "Price: ${activity.pricing.currency} ${activity.pricing.price}"
+                // Safely access pricing information
+                val priceText = activity.pricing?.let {
+                    it.discountPrice?.let { discount ->
+                        "Discounted Price: ${it.currency} $discount (Original: ${it.price})"
+                    } ?: "Price: ${it.currency} ${it.price}"
+                } ?: "Pricing not available" // Default text if pricing is null
                 Text(priceText, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
             }
         }
 
-        // --- Duration Section ---
+        // --- Duration Section (Null-Safe) ---
         item {
             DetailSection(title = "Duration") {
-                Text(activity.durationInfo.durationDescription, style = MaterialTheme.typography.bodyLarge)
+                // Safely access duration description
+                val durationText = activity.durationInfo?.durationDescription ?: "Duration not available"
+                Text(durationText, style = MaterialTheme.typography.bodyLarge)
             }
         }
 

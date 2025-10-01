@@ -17,13 +17,13 @@ data class Activity(
     // Add any other top-level fields from the JSON here...
 
     @SerializedName("duration")
-    val durationInfo: DurationInfo,
+    val durationInfo: DurationInfo?,
 
     @SerializedName("enrollmentInfo")
-    val enrollmentInfo: EnrollmentInfo,
+    val enrollmentInfo: EnrollmentInfo?,
 
     // You can add the other nested JSON objects as data classes below
-    val pricing: Pricing
+    val pricing: Pricing?
     // val schedule: Schedule,
     // val instructorDetails: InstructorDetails,
 )
@@ -64,7 +64,17 @@ data class ActivityFilter(
 
     // Sorting
     val sortBy: String? = null,      // e.g., "price", "rating"
-    val sortDirection: String? = null // "asc" or "desc"
+    val sortDirection: String? = null, // "asc" or "desc"
+
+    // Sort by Query
+    val searchQuery: String? = null
+
+)
+
+data class NaturalSearchRequest(
+    val text: String,
+    val userLatitude: Double,
+    val userLongitude: Double
 )
 
 // It's a generic class that can hold a "page" of any type of data.

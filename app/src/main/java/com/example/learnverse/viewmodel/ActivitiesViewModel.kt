@@ -1,5 +1,8 @@
 package com.example.learnverse.viewmodel
 
+import android.annotation.SuppressLint
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
 import android.content.Context
 import androidx.compose.runtime.State
 // --- CRITICAL COMPOSE IMPORTS ---
@@ -11,6 +14,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 // --- YOUR PROJECT IMPORTS ---
 import com.example.learnverse.data.model.Activity
+import com.example.learnverse.data.model.ActivityFilter
+import com.example.learnverse.data.model.NaturalSearchRequest
 import com.example.learnverse.data.repository.ActivitiesRepository
 import com.example.learnverse.utils.UserPreferences
 import kotlinx.coroutines.flow.firstOrNull
@@ -23,8 +28,9 @@ class ActivitiesViewModel(
 
     var activities by mutableStateOf<List<Activity>>(emptyList())
         private set
+
     var searchQuery by mutableStateOf("")
-        private set
+
     var isLoading by mutableStateOf(false)
         private set
     var errorMessage by mutableStateOf<String?>(null)
@@ -34,9 +40,10 @@ class ActivitiesViewModel(
     private val _isFiltered = mutableStateOf(false)
     val isFiltered: State<Boolean> = _isFiltered
 
-    fun onSearchQueryChange(newQuery: String) {
-        searchQuery = newQuery
-    }
+    // STATE to hold the nearby activities
+    var nearbyActivities by mutableStateOf<List<Activity>>(emptyList())
+        private set
+
 
     fun fetchMyFeed(forceRefresh: Boolean = false) {
         if (isInitialFeedLoaded && !forceRefresh) return
@@ -79,5 +86,82 @@ class ActivitiesViewModel(
         _isFiltered.value = false
         isInitialFeedLoaded = false
         // You can reset any other states here if needed
+    }
+
+    // function for the natural language search
+    @SuppressLint("MissingPermission")
+    fun performNaturalSearch(context: Context) {
+        val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
+        viewModelScope.launch {
+            isLoading = true
+            errorMessage = null
+            val token = UserPreferences.getToken(context).firstOrNull()
+            if (token.isNullOrBlank()) {
+                errorMessage = "Authentication token not found"
+                isLoading = false
+                return@launch
+            }
+
+            fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null)
+                .addOnSuccessListener { location ->
+                    if (location != null) {
+                        viewModelScope.launch {
+                            try {
+                                val searchRequest = NaturalSearchRequest(
+                                    text = searchQuery,
+                                    userLatitude = location.latitude,
+                                    userLongitude = location.longitude
+                                )
+                                val results = repository.naturalSearch(token, searchRequest)
+                                updateActivitiesList(results)
+                            } catch (e: Exception) {
+                                errorMessage = "Search failed: ${e.message}"
+                            } finally {
+                                isLoading = false
+                            }
+                        }
+                    } else {
+                        errorMessage = "Could not get location for search. Please ensure location is enabled."
+                        isLoading = false
+                    }
+                }
+                .addOnFailureListener {
+                    errorMessage = "Failed to get location: ${it.message}"
+                    isLoading = false
+                }
+        }
+    }
+
+    @SuppressLint("MissingPermission") // We'll handle permissions in the UI
+    fun fetchNearbyActivities(context: Context) {
+        val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
+
+        viewModelScope.launch {
+            // First, get the token
+            val token = UserPreferences.getToken(context).firstOrNull()
+            if (token.isNullOrBlank()) { /* Handle error */ return@launch }
+
+            // Then, get the location
+            fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null)
+                .addOnSuccessListener { location ->
+                    if (location != null) {
+                        // Location found, now call the repository
+                        viewModelScope.launch {
+                            try {
+                                isLoading = true // You might want a separate loading state
+                                nearbyActivities = repository.getNearbyActivities(
+                                    token = token,
+                                    latitude = location.latitude,
+                                    longitude = location.longitude
+                                )
+                            } catch (e: Exception) {
+                                // Handle error
+                            } finally {
+                                isLoading = false
+                            }
+                        }
+                    }
+                }
+        }
     }
 }

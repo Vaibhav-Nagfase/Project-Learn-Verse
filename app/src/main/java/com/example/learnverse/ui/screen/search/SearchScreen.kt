@@ -1,5 +1,6 @@
 package com.example.learnverse.ui.screen.search
 
+import android.Manifest
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -22,15 +23,23 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.colorResource
+import com.example.learnverse.R
 import androidx.navigation.NavController
 import com.example.learnverse.data.model.Activity
 import com.example.learnverse.viewmodel.ActivitiesViewModel
 import com.example.learnverse.viewmodel.AuthViewModel
+import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.isGranted
+import com.google.accompanist.permissions.rememberPermissionState
 
+
+@OptIn(ExperimentalPermissionsApi::class)
 @Composable
 fun SearchScreen(
     navController: NavController,
-    initialQuery: String,
+    searchQueryFromHome: String?,
     activitiesViewModel: ActivitiesViewModel,
     authViewModel: AuthViewModel
 ) {
@@ -54,11 +63,18 @@ fun SearchScreen(
 
 
     var showLogoutDialog by remember { mutableStateOf(false) }
+    val context = LocalContext.current
 
     // THIS IS THE ONLY LaunchedEffect NEEDED FOR INITIAL LOAD
     LaunchedEffect(Unit) {
-        // It calls the correct function to load the personalized feed.
-        activitiesViewModel.fetchMyFeed()
+        if (!searchQueryFromHome.isNullOrBlank()) {
+            // If a search query was passed from the home screen, set the state directly
+            activitiesViewModel.searchQuery = searchQueryFromHome // <-- CORRECTED LINE
+            activitiesViewModel.performNaturalSearch(context)
+        } else {
+            // Otherwise, fetch the default personalized feed
+            activitiesViewModel.fetchMyFeed()
+        }
     }
 
     val activities = activitiesViewModel.activities
@@ -66,6 +82,11 @@ fun SearchScreen(
     val isLoading = activitiesViewModel.isLoading
 
     val isFiltered by activitiesViewModel.isFiltered
+
+
+    // Permission state for location (needed for natural search)
+    val locationPermissionState = rememberPermissionState(Manifest.permission.ACCESS_FINE_LOCATION)
+
 
     Column(modifier = Modifier
         .fillMaxSize()
@@ -81,12 +102,22 @@ fun SearchScreen(
         ) {
             OutlinedTextField(
                 value = searchQuery,
-                onValueChange = { activitiesViewModel.onSearchQueryChange(it) },
-                label = { Text("Search Course") },
+                onValueChange = { newValue ->
+                    // You now set the value directly on the ViewModel
+                    activitiesViewModel.searchQuery = newValue  },
+                label = { Text("Describe the activity you're looking for...") },
                 leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                 trailingIcon = { Icon(Icons.Default.Mic, contentDescription = null) },
                 modifier = Modifier.weight(1f), // Use weight to fill available space
-                keyboardActions = KeyboardActions(onSearch = { /* TODO: Call filter endpoint here in the future */ }),
+                minLines = 2,
+                keyboardActions = KeyboardActions(onSearch = {
+                    // Check for location permission before searching
+                    if (locationPermissionState.status.isGranted) {
+                        activitiesViewModel.performNaturalSearch(context)
+                    } else {
+                        locationPermissionState.launchPermissionRequest()
+                    }
+                }),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search)
             )
             IconButton(onClick = { showLogoutDialog = true }) {
@@ -107,7 +138,10 @@ fun SearchScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             if (isFiltered) {
-                OutlinedButton(onClick = { activitiesViewModel.fetchMyFeed(forceRefresh = true) }) {
+                OutlinedButton(onClick = {
+                    activitiesViewModel.fetchMyFeed(forceRefresh = true)
+                    activitiesViewModel.searchQuery = ""
+                }) {
                     Text("Reset")
                 }
                 Spacer(Modifier.width(8.dp))
@@ -168,7 +202,7 @@ fun ActivityResultCard(activity: Activity, onClick: () -> Unit) {
                 modifier = Modifier
                     .size(80.dp)
                     .clip(RoundedCornerShape(12.dp))
-                    .background(Color.Magenta),
+                    .background(color = colorResource(R.color.violet)),
                 contentAlignment = Alignment.Center
             ) {
                 Text("Image", color = Color.White, fontWeight = FontWeight.Bold)
@@ -182,12 +216,14 @@ fun ActivityResultCard(activity: Activity, onClick: () -> Unit) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Default.Schedule, contentDescription = "Duration", modifier = Modifier.size(16.dp), tint = Color.Gray)
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text(text = "${activity.durationInfo.totalDuration / 60} Hr.", style = MaterialTheme.typography.bodySmall)
+                        val durationText = activity.durationInfo?.totalDuration?.let { "${it / 60} Hr." } ?: "N/A"
+                        Text(text = durationText, style = MaterialTheme.typography.bodySmall)
                     }
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Default.Person, contentDescription = "Users", modifier = Modifier.size(16.dp), tint = Color.Gray)
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text(text = "${activity.enrollmentInfo.enrolledCount} User", style = MaterialTheme.typography.bodySmall)
+                        val userCountText = activity.enrollmentInfo?.enrolledCount?.let { "$it User" } ?: "N/A"
+                        Text(text = userCountText, style = MaterialTheme.typography.bodySmall)
                     }
                 }
             }

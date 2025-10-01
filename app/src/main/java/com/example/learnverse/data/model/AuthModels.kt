@@ -16,8 +16,22 @@ data class InterestsRequest(
     val interests: List<String>
 )
 
+// NEW: Represents the response from GET /api/user/interests
+data class UserInterestsResponse(
+    val interests: List<String>,
+    val interestCount: Int
+)
+
+// NEW: Represents the request body for POST /api/user/interests/remove
+data class InterestsUpdateRequest(
+    val interests: List<String>
+)
+
 data class AuthResponse(
     val accessToken: String,
-    val interests: List<String>? // Add this field. It will be null or empty for new users.
+    val tokenType: String,
+    val expiresInSeconds: Int,
+    val role: String,
+    val userId: String
 )
 

@@ -41,22 +41,27 @@ android {
 
 dependencies {
 
+    // Your existing non-compose dependencies are fine
+    implementation("com.google.accompanist:accompanist-permissions:0.34.0")
     implementation("com.squareup.retrofit2:retrofit:2.11.0")
     implementation("com.squareup.retrofit2:converter-gson:2.11.0")
     implementation("com.squareup.okhttp3:logging-interceptor:5.0.0-alpha.14")
     implementation("androidx.datastore:datastore-preferences:1.1.1")
+    implementation(libs.play.services.location)
 
-    val nav_version = "2.7.5"
-    val compose_version = "1.6.0-alpha08"
-    implementation("androidx.navigation:navigation-compose:$nav_version")
-    implementation("androidx.compose.ui:ui:$compose_version")
-    implementation("androidx.compose.material:material:$compose_version")
-    implementation("androidx.compose.ui:ui-tooling-preview:$compose_version")
+    implementation("com.auth0.android:jwtdecode:2.0.2")
+    implementation("io.coil-kt:coil-compose:2.6.0")
 
-    implementation("androidx.compose.material:material-icons-extended:1.6.8")
+    // --- DEPENDENCY CLEANUP ---
 
-    implementation("androidx.compose.runtime:runtime-livedata:1.6.8")
+    // Keep the navigation dependency (its version is managed separately)
+    implementation("androidx.navigation:navigation-compose:2.7.5")
 
+
+    implementation("androidx.compose.material:material-icons-extended")
+    implementation("androidx.compose.runtime:runtime-livedata")
+
+    // The rest of your dependencies are managed by your version catalog (libs) and are correct.
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
