@@ -7,57 +7,43 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
-import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.learnverse.data.remote.ApiClient
-import com.example.learnverse.data.repository.ActivitiesRepository
-import com.example.learnverse.data.repository.AdminRepository
-import com.example.learnverse.ui.theme.LearnVerseTheme
-import com.example.learnverse.viewmodel.AuthViewModel
-import com.example.learnverse.data.repository.AuthRepository
-import com.example.learnverse.data.repository.TutorRepository
+import com.example.learnverse.data.remote.ApiService
+import com.example.learnverse.data.repository.*
 import com.example.learnverse.ui.screen.admin.AdminDashboardScreen
 import com.example.learnverse.ui.screen.auth.InterestSelectionDialog
 import com.example.learnverse.ui.screen.auth.LoginScreen
 import com.example.learnverse.ui.screen.auth.SignUpScreen
-import com.example.learnverse.ui.screen.home.HomeScreen
+import com.example.learnverse.ui.screen.chatbot.ChatScreen
 import com.example.learnverse.ui.screen.detail.ActivityDetailScreen
+import com.example.learnverse.ui.screen.enrollment.MyCoursesScreen
 import com.example.learnverse.ui.screen.filter.FilterScreen
+import com.example.learnverse.ui.screen.home.HomeScreen
 import com.example.learnverse.ui.screen.interest.InterestManagementScreen
+import com.example.learnverse.ui.screen.profile.ProfileScreen
 import com.example.learnverse.ui.screen.search.SearchScreen
+import com.example.learnverse.ui.screen.tutor.CreateActivityScreen
+import com.example.learnverse.ui.screen.tutor.TutorDashboardScreen
 import com.example.learnverse.ui.screen.tutor.TutorVerificationScreen
-import com.example.learnverse.viewmodel.ActivitiesViewModel
-import com.example.learnverse.viewmodel.ActivitiesViewModelFactory
-import com.example.learnverse.viewmodel.AdminViewModel
-import com.example.learnverse.viewmodel.AdminViewModelFactory
-import com.example.learnverse.viewmodel.AuthState
-import com.example.learnverse.viewmodel.AuthViewModelFactory
-import com.example.learnverse.viewmodel.FilterViewModel
-import com.example.learnverse.viewmodel.FilterViewModelFactory
-import com.example.learnverse.viewmodel.TutorVerificationViewModel
-import com.example.learnverse.viewmodel.TutorVerificationViewModelFactory
+import com.example.learnverse.ui.theme.LearnVerseTheme
+import com.example.learnverse.viewmodel.*
 
 
 class MainActivity : ComponentActivity() {
@@ -70,10 +56,8 @@ class MainActivity : ComponentActivity() {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
-                    ) {
-
+                ) {
                     LearnVerseApp()
-
                 }
             }
         }
@@ -82,91 +66,90 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun LearnVerseApp() {
-    // --- ViewModel Setup (remains the same) ---
     val context = LocalContext.current.applicationContext
+    val application = context as Application
 
-    // Get the application instance needed for the AndroidViewModel
-    val application = LocalContext.current.applicationContext as Application
+    // --- API Client & Service ---
 
+    // 1. Get the singleton ApiClient instance which holds OkHttp and Retrofit
+    val apiClient = remember { ApiClient.getInstance(context) }
 
-//    val apiService = ApiClient.getInstance(context)
-    val authRepository = remember { AuthRepository(ApiClient.api, context) }
-    val tutorRepository = remember { TutorRepository(ApiClient.api) }
-    val authViewModel: AuthViewModel = viewModel(factory = AuthViewModelFactory(authRepository, tutorRepository))
+    // 2. Get the actual ApiService interface from Retrofit
+    val apiService = remember { apiClient.retrofit.create(ApiService::class.java) }
 
-    val activitiesRepository = remember { ActivitiesRepository(ApiClient.api) }
+    // 3. Get the OkHttpClient for the chat streamer
+    val okHttpClient = remember { apiClient.okHttpClient }
+
+    // --- REPOSITORIES ---
+    val authRepository = remember { AuthRepository(apiService, context) }
+    val tutorRepository = remember { TutorRepository(apiService) }
+    val activitiesRepository = remember { ActivitiesRepository(apiService) }
+    val adminRepository = remember { AdminRepository(apiService) }
+    val profileRepository = remember { ProfileRepository(apiService) }
+    val chatRepository = remember { ChatRepository(apiService, okHttpClient) }
+
+    // --- VIEWMODELS ---
+    val authViewModel: AuthViewModel = viewModel(
+        factory = AuthViewModelFactory(authRepository, tutorRepository, profileRepository)
+    )
     val activitiesViewModel: ActivitiesViewModel = viewModel(
         factory = ActivitiesViewModelFactory(activitiesRepository, context)
     )
-
-    // Filter ViewModel Setup
     val filterViewModel: FilterViewModel = viewModel(
-        factory = FilterViewModelFactory(activitiesRepository, context)
+        factory = FilterViewModelFactory(activitiesRepository)
     )
-
-    // Tutor Verification ViewModel Setup
-
     val tutorVerificationViewModel: TutorVerificationViewModel = viewModel(
-        factory = TutorVerificationViewModelFactory(application, tutorRepository, authRepository)
+        factory = TutorVerificationViewModelFactory(application, tutorRepository)
     )
-
-    // --- ADD THIS ADMIN VIEWMODEL SETUP ---
-    val adminRepository = remember { AdminRepository(ApiClient.api) }
     val adminViewModel: AdminViewModel = viewModel(
-        factory = AdminViewModelFactory(application, adminRepository, authRepository)
+        factory = AdminViewModelFactory(application, adminRepository)
+    )
+    val tutorViewModel: TutorViewModel = viewModel(factory = TutorViewModelFactory(tutorRepository))
+    val profileViewModel: ProfileViewModel = viewModel(
+        factory = ProfileViewModelFactory(profileRepository)
+    )
+    val chatViewModel: ChatViewModel = viewModel(
+        factory = ChatViewModelFactory(chatRepository, authRepository)
     )
 
-    // Observe the single source of truth for navigation
+    // --- State Observation ---
     val authState by authViewModel.authState.collectAsState()
     val userRole by authViewModel.currentUserRole.collectAsState()
 
-    // A when statement now controls the entire app flow
+    // --- Main App Navigation ---
     when (authState) {
         AuthState.Loading -> {
-            // Show a full-screen loading indicator while checking for a token
             Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
                 CircularProgressIndicator()
             }
         }
         AuthState.Unauthenticated -> {
-            // If the user is logged out, show the login/signup screens
             LoginNavGraph(authViewModel = authViewModel)
         }
         AuthState.NeedsInterestSelection -> {
-            // If the user needs to select interests, show the dialog
             InterestSelectionDialog(
                 onDismiss = { authViewModel.onInterestSelectionCancelled() },
                 onSave = { selectedInterests -> authViewModel.saveInterests(selectedInterests) }
             )
         }
         AuthState.Authenticated -> {
-            // If the user is fully logged in, show the main part of the app
-
             when (userRole) {
                 "ADMIN" -> {
-                    // If the user is an ADMIN, show the AdminNavGraph
                     AdminNavGraph(authViewModel = authViewModel, adminViewModel = adminViewModel)
                 }
-
                 "TUTOR" -> {
-                    // If the user is a TUTOR, show the TutorNavGraph
-                    TutorNavGraph(authViewModel = authViewModel)
+                    TutorNavGraph(authViewModel = authViewModel, tutorViewModel = tutorViewModel)
                 }
-
                 else -> {
-                    // Otherwise, they are a regular USER, show the MainNavGraph
-                    val startDestination = when {
-                        authViewModel.navigateToFeedAfterOnboarding -> "feed"
-                        authViewModel.interestSelectionCancelled -> "home"
-                        else -> "home"
-                    }
-
+                    val startDestination = if (authViewModel.navigateToFeedAfterOnboarding || authViewModel.interestSelectionCancelled) "home" else "home"
                     MainNavGraph(
                         authViewModel = authViewModel,
                         activitiesViewModel = activitiesViewModel,
                         startDestination = startDestination,
                         filterViewModel = filterViewModel,
-                        tutorVerificationViewModel = tutorVerificationViewModel
+                        tutorVerificationViewModel = tutorVerificationViewModel,
+                        profileViewModel = profileViewModel,
+                        chatViewModel = chatViewModel
                     )
                 }
             }
@@ -174,7 +157,6 @@ fun LearnVerseApp() {
     }
 }
 
-// Helper composable for the login/signup navigation
 @Composable
 fun LoginNavGraph(authViewModel: AuthViewModel) {
     val navController = rememberNavController()
@@ -184,82 +166,86 @@ fun LoginNavGraph(authViewModel: AuthViewModel) {
     }
 }
 
-// Helper composable for the main app navigation
 @Composable
-fun MainNavGraph(authViewModel: AuthViewModel,
-                 activitiesViewModel: ActivitiesViewModel,
-                 startDestination: String,
-                 filterViewModel: FilterViewModel,
-                 tutorVerificationViewModel: TutorVerificationViewModel) {
-
+fun MainNavGraph(
+    authViewModel: AuthViewModel,
+    activitiesViewModel: ActivitiesViewModel,
+    startDestination: String,
+    filterViewModel: FilterViewModel,
+    tutorVerificationViewModel: TutorVerificationViewModel,
+    profileViewModel: ProfileViewModel,
+    chatViewModel: ChatViewModel
+) {
     val navController = rememberNavController()
-    // The start destination is now "feed" which will be our repurposed SearchScreen
     NavHost(navController = navController, startDestination = startDestination) {
-        composable(route = "feed?query={query}", // route string to accept an optional argument
-            arguments = listOf(navArgument("query") { nullable = true }) // Define the argument
-        ) {backStackEntry ->
+        composable("home") {
+            HomeScreen(navController, authViewModel, activitiesViewModel)
+        }
+        composable("my_courses") {
+            MyCoursesScreen(navController = navController, activitiesViewModel = activitiesViewModel)
+        }
+        composable(
+            route = "feed?query={query}",
+            arguments = listOf(navArgument("query") { nullable = true })
+        ) { backStackEntry ->
             SearchScreen(
                 navController = navController,
-                // 3. Extract the argument and pass it to the screen
                 searchQueryFromHome = backStackEntry.arguments?.getString("query"),
                 activitiesViewModel = activitiesViewModel,
                 authViewModel = authViewModel
             )
         }
-
-        composable("home") {
-            HomeScreen(navController, authViewModel, activitiesViewModel)
-        }
-
-        composable("tutorVerification") {
-            TutorVerificationScreen(
-                navController = navController,
-                viewModel = tutorVerificationViewModel,
-                authViewModel = authViewModel
-            )
-        }
-
-        composable("interestManagement") {
-            InterestManagementScreen(navController, authViewModel)
-        }
-
         composable("activityDetail/{activityId}") { backStackEntry ->
-            // 1. Get the activityId from the navigation route
-            val activityId = backStackEntry.arguments?.getString("activityId") ?: ""
-
-            // 2. Call the new ActivityDetailScreen
             ActivityDetailScreen(
-                activityId = activityId,
-                // 3. Pass the shared ViewModel and NavController
+                activityId = backStackEntry.arguments?.getString("activityId") ?: "",
                 activitiesViewModel = activitiesViewModel,
                 navController = navController
             )
         }
-
+        composable("tutorVerification") {
+            TutorVerificationScreen(navController, tutorVerificationViewModel, authViewModel)
+        }
+        composable("interestManagement") {
+            InterestManagementScreen(navController, authViewModel, activitiesViewModel)
+        }
         composable("filter") {
             FilterScreen(navController = navController, viewModel = filterViewModel)
         }
 
+        // --- NEW ROUTES FOR PROFILE AND CHAT ---
+        composable("profile_setup") {
+            ProfileScreen(navController, profileViewModel, authViewModel)
+        }
+        composable("my_profile") {
+            ProfileScreen(navController, profileViewModel, authViewModel, isUpdating = true)
+        }
+        composable("chat") {
+            ChatScreen(navController, chatViewModel)
+        }
     }
 
-    // This effect runs once when MainNavGraph is first displayed.
-    // Its job is to call the reset function in your ViewModel.
     LaunchedEffect(Unit) {
         authViewModel.onNavigationToFeedComplete()
     }
 }
 
 @Composable
-fun TutorNavGraph(authViewModel: AuthViewModel) {
-    // For now, this is a placeholder. In the future, it will have its own
-    // NavHost with screens for creating activities, a dashboard, etc.
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("Welcome, Tutor!", style = MaterialTheme.typography.headlineMedium)
-            Spacer(modifier = Modifier.height(16.dp))
-            Button(onClick = { authViewModel.logout() }) {
-                Text("Logout")
-            }
+fun TutorNavGraph(authViewModel: AuthViewModel, tutorViewModel: TutorViewModel) {
+    val navController = rememberNavController()
+    NavHost(navController = navController, startDestination = "tutor_dashboard") {
+        composable("tutor_dashboard") {
+            TutorDashboardScreen(navController, authViewModel, tutorViewModel)
+        }
+        composable(
+            route = "create_activity?activityId={activityId}",
+            arguments = listOf(navArgument("activityId") { nullable = true })
+        ) { backStackEntry ->
+            CreateActivityScreen(
+                navController = navController,
+                authViewModel = authViewModel,
+                tutorViewModel = tutorViewModel,
+                activityId = backStackEntry.arguments?.getString("activityId")
+            )
         }
     }
 }
@@ -269,13 +255,8 @@ fun AdminNavGraph(authViewModel: AuthViewModel, adminViewModel: AdminViewModel) 
     val navController = rememberNavController()
     NavHost(navController = navController, startDestination = "admin_dashboard") {
         composable("admin_dashboard") {
-            // We will build this screen in the next step
-            AdminDashboardScreen(
-                navController = navController,
-                adminViewModel = adminViewModel,
-                authViewModel = authViewModel
-            )
+            AdminDashboardScreen(navController, adminViewModel, authViewModel)
         }
-        // TODO: Add other admin-specific routes here later
     }
 }
+

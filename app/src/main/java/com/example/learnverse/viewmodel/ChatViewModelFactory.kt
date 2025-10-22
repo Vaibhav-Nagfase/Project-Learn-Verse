@@ -1,19 +1,18 @@
 package com.example.learnverse.viewmodel
 
-import android.app.Application
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
-import com.example.learnverse.data.repository.AdminRepository
+import com.example.learnverse.data.repository.ChatRepository
 import com.example.learnverse.data.repository.AuthRepository
 
-class AdminViewModelFactory(
-    private val application: Application,
-    private val adminRepository: AdminRepository
+class ChatViewModelFactory(
+    private val repository: ChatRepository,
+    private val authRepository: AuthRepository
 ) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        if (modelClass.isAssignableFrom(AdminViewModel::class.java)) {
-            return AdminViewModel(application, adminRepository) as T
+        if (modelClass.isAssignableFrom(ChatViewModel::class.java)) {
+            return ChatViewModel(repository, authRepository) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class")
     }

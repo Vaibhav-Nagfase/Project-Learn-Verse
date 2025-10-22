@@ -2,73 +2,103 @@ package com.example.learnverse.data.model
 
 import com.google.gson.annotations.SerializedName
 
-// This new "Activity" class replaces your old "ActivityResponse"
+/**
+ * Represents a full Activity object as received from the server.
+ * This is used for displaying activities in lists, feeds, and detail screens.
+ */
 data class Activity(
-
-//    @SerializedName("_id")
     val id: String,
-
+    val tutorId: String?, // Added to link back to the tutor
     val tutorName: String,
     val title: String,
     val description: String,
     val subject: String,
     val mode: String,
     val difficulty: String,
-    // Add any other top-level fields from the JSON here...
-
+    val classType: String?,
+    val activityType: String?,
+    val tags: List<String>?,
+    val isActive: Boolean?,
+    val isPublic: Boolean?,
     @SerializedName("duration")
     val durationInfo: DurationInfo?,
-
     @SerializedName("enrollmentInfo")
     val enrollmentInfo: EnrollmentInfo?,
-
-    // You can add the other nested JSON objects as data classes below
-    val pricing: Pricing?
-    // val schedule: Schedule,
-    // val instructorDetails: InstructorDetails,
+    val pricing: PricingInfo? // Renamed to avoid confusion with the creation model
 )
 
-// Helper data classes for nested JSON objects
+/**
+ * Represents the specific JSON body required by the POST /api/activities/create endpoint.
+ * Notice it has its own nested Pricing and Duration classes to perfectly match the request format.
+ */
+data class CreateActivityRequest(
+    val tutorId: String,
+    val tutorName: String,
+    val title: String,
+    val description: String,
+    val subject: String,
+    val classType: String,
+    val activityType: String,
+    val mode: String,
+    val difficulty: String,
+    val pricing: Pricing, // Nested class for creation
+    val duration: Duration, // Nested class for creation
+    val tags: List<String>,
+    val isActive: Boolean,
+    val isPublic: Boolean
+) {
+    // This nested class exactly matches the 'pricing' object in the creation JSON
+    data class Pricing(
+        val price: Double,
+        val currency: String,
+        val priceType: String
+    )
+
+    // This nested class exactly matches the 'duration' object in the creation JSON
+    data class Duration(
+        val totalDuration: Int,
+        val totalSessions: Int,
+        val durationDescription: String
+    )
+}
+
+
+// --- HELPER DATA CLASSES FOR DISPLAYING AN ACTIVITY ---
+
 data class DurationInfo(
-    val totalDuration: Int,
-    val durationDescription: String
+    val totalDuration: Int?, // Made nullable for safety
+    val totalSessions: Int?, // Made nullable for safety
+    val durationDescription: String? // Made nullable for safety
 )
 
 data class EnrollmentInfo(
     val enrolledCount: Int,
-    val maxCapacity: Int
+    val maxCapacity: Int? // Made nullable for safety
 )
 
-data class Pricing(
+// Renamed to PricingInfo to be distinct from the creation model's Pricing class
+data class PricingInfo(
     val price: Double,
     val currency: String,
-    val discountPrice: Double?
+    val discountPrice: Double?,
+    val priceType: String?
 )
 
+
+// --- OTHER MODELS (Unchanged) ---
+
 data class ActivityFilter(
-    // Category
     val subjects: List<String>? = null,
     val activityTypes: List<String>? = null,
     val modes: List<String>? = null,
     val difficulties: List<String>? = null,
-
-    // Location
     val cities: List<String>? = null,
-
-    // Price
     val minPrice: Int? = null,
     val maxPrice: Int? = null,
-
-    // Features
     val demoAvailable: Boolean? = null,
-
-    // Sorting
-    val sortBy: String? = null,      // e.g., "price", "rating"
-    val sortDirection: String? = null, // "asc" or "desc"
-
-    // Sort by Query
+    val sortBy: String? = null,
+    val sortDirection: String? = null,
     val searchQuery: String? = null
-
 )
 
 data class NaturalSearchRequest(
@@ -77,7 +107,6 @@ data class NaturalSearchRequest(
     val userLongitude: Double
 )
 
-// It's a generic class that can hold a "page" of any type of data.
 data class PagedResponse<T>(
     val content: List<T>,
     val pageNumber: Int,

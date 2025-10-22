@@ -26,29 +26,44 @@ class AuthRepository(private val api: ApiService, private val context: Context) 
         throw Exception("Login failed: ${response.message()}")
     }
 
-    suspend fun getUserInterests(token: String): UserInterestsResponse {
-        val response = api.getUserInterests("Bearer $token")
+    suspend fun getUserInterests(): UserInterestsResponse {
+        // The "Bearer $token" argument has been removed.
+        val response = api.getUserInterests()
         if (response.isSuccessful && response.body() != null) {
             return response.body()!!
         }
         throw Exception("Failed to get user interests")
     }
 
-    suspend fun addUserInterests(token: String, interests: List<String>) {
-        val response = api.addUserInterests("Bearer $token", InterestsUpdateRequest(interests))
+    // The 'token' parameter has been removed.
+    suspend fun addUserInterests(interests: List<String>) {
+        // The "Bearer $token" argument has been removed.
+        val response = api.addUserInterests(InterestsUpdateRequest(interests))
         if (!response.isSuccessful) {
             throw Exception("Failed to add interests: ${response.code()} ${response.message()}")
         }
     }
 
-    suspend fun removeUserInterests(token: String, interests: List<String>) {
-        val response = api.removeUserInterests("Bearer $token", InterestsUpdateRequest(interests))
+    // The 'token' parameter has been removed.
+    suspend fun removeUserInterests(interests: List<String>) {
+        // The "Bearer $token" argument has been removed.
+        val response = api.removeUserInterests(InterestsUpdateRequest(interests))
         if (!response.isSuccessful) {
             throw Exception("Failed to remove interests")
         }
     }
 
     suspend fun logout() {
+        try {
+            // 1. Call the server to invalidate the token.
+            // The AuthInterceptor will automatically add the
+            // current token to this request.
+            api.logout()
+        } catch (e: Exception) {
+            // Log the error, but don't stop.
+            // We must always clear the local token.
+            println("Server logout failed, clearing local token anyway: ${e.message}")
+        }
         UserPreferences.clearToken(context)
         saveInterestsSkippedFlag(false)
     }

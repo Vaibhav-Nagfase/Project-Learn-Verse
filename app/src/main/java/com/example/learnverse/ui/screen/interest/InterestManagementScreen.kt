@@ -18,13 +18,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.example.learnverse.viewmodel.ActivitiesViewModel
 import com.example.learnverse.viewmodel.AuthViewModel
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun InterestManagementScreen(
     navController: NavController,
-    authViewModel: AuthViewModel
+    authViewModel: AuthViewModel,
+    activitiesViewModel: ActivitiesViewModel
 ) {
     // Fetch the latest interests when the screen is first shown
     LaunchedEffect(Unit) {
@@ -52,6 +54,7 @@ fun InterestManagementScreen(
         floatingActionButton = {
             FloatingActionButton(onClick = {
                 // Simply navigate back. The changes are already saved with each click.
+                activitiesViewModel.fetchMyFeed()
                 navController.navigateUp()
             }) {
                 Icon(Icons.Default.Check, contentDescription = "Done")

@@ -26,6 +26,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.example.learnverse.R
 import com.example.learnverse.data.model.Activity
@@ -45,6 +46,11 @@ fun HomeScreen(
 ) {
     val context = LocalContext.current
     var searchQuery by remember { mutableStateOf("") }
+
+    // ADD THIS BLOCK TO AUTOMATICALLY FETCH THE FEED
+    LaunchedEffect(Unit) {
+        activitiesViewModel.fetchMyFeed()
+    }
 
     // Get the data from the ViewModel
     val recommendedActivities = activitiesViewModel.activities // Reusing the main feed for recommendations
@@ -67,6 +73,7 @@ fun HomeScreen(
     val scope = rememberCoroutineScope()
 
     val verificationStatus by authViewModel.verificationStatus.collectAsState()
+    val hasProfile by authViewModel.hasProfile.collectAsStateWithLifecycle()
 
     ModalNavigationDrawer(
         drawerState = drawerState,
@@ -74,6 +81,24 @@ fun HomeScreen(
             // 3. Define the content of the drawer
             ModalDrawerSheet {
                 Text("LearnVerse Menu", modifier = Modifier.padding(16.dp), style = MaterialTheme.typography.titleLarge)
+
+                Divider()
+
+                // --- NEW "MY PROFILE" ITEM ---
+                NavigationDrawerItem(
+                    label = { Text(text = "My Profile") },
+                    selected = false,
+                    onClick = {
+                        scope.launch { drawerState.close() }
+                        // Navigate to update profile if it exists, otherwise go to setup
+                        if (hasProfile == true) {
+                            navController.navigate("my_profile")
+                        } else {
+                            navController.navigate("profile_setup")
+                        }
+                    }
+                )
+
                 Divider()
                 NavigationDrawerItem(
                     label = { Text(text = "My Interests") },
@@ -81,6 +106,18 @@ fun HomeScreen(
                     onClick = {
                         scope.launch { drawerState.close() }
                         navController.navigate("interestManagement")
+                    }
+                )
+
+                Divider() // Optional: for visual separation
+
+                // --- ADD THIS NEW ITEM ---
+                NavigationDrawerItem(
+                    label = { Text(text = "My Courses") },
+                    selected = false,
+                    onClick = {
+                        scope.launch { drawerState.close() }
+                        navController.navigate("my_courses")
                     }
                 )
 
@@ -135,6 +172,17 @@ fun HomeScreen(
         Scaffold(
             bottomBar = {
                 BottomNavigationBar(navController = navController)
+            },
+            floatingActionButton = {
+                FloatingActionButton(onClick = {
+                    when (hasProfile) {
+                        true -> navController.navigate("chat")      // Profile exists, go to chat
+                        false -> navController.navigate("profile_setup") // No profile, go to setup
+                        null -> { /* Do nothing while profile status is loading */ }
+                    }
+                }) {
+                    Icon(Icons.Default.Chat, contentDescription = "Learning Assistant")
+                }
             }
         ) { paddingValues ->
             LazyColumn(

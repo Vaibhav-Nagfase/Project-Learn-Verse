@@ -5,20 +5,16 @@ import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import android.content.Context
 import androidx.compose.runtime.State
-// --- CRITICAL COMPOSE IMPORTS ---
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-// --- ANDROIDX IMPORTS ---
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-// --- YOUR PROJECT IMPORTS ---
 import com.example.learnverse.data.model.Activity
-import com.example.learnverse.data.model.ActivityFilter
 import com.example.learnverse.data.model.NaturalSearchRequest
 import com.example.learnverse.data.repository.ActivitiesRepository
-import com.example.learnverse.utils.UserPreferences
-import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
 class ActivitiesViewModel(
@@ -28,6 +24,12 @@ class ActivitiesViewModel(
 
     var activities by mutableStateOf<List<Activity>>(emptyList())
         private set
+
+    private val _myEnrolledActivities = MutableStateFlow<List<Activity>>(emptyList())
+    val myEnrolledActivities: StateFlow<List<Activity>> = _myEnrolledActivities
+
+    private var enrolledActivityIds by mutableStateOf<Set<String>>(emptySet())
+    val isEnrolled: (String) -> Boolean = { it in enrolledActivityIds }
 
     var searchQuery by mutableStateOf("")
 
@@ -40,10 +42,8 @@ class ActivitiesViewModel(
     private val _isFiltered = mutableStateOf(false)
     val isFiltered: State<Boolean> = _isFiltered
 
-    // STATE to hold the nearby activities
     var nearbyActivities by mutableStateOf<List<Activity>>(emptyList())
         private set
-
 
     fun fetchMyFeed(forceRefresh: Boolean = false) {
         if (isInitialFeedLoaded && !forceRefresh) return
@@ -51,16 +51,9 @@ class ActivitiesViewModel(
         viewModelScope.launch {
             isLoading = true
             errorMessage = null
-            val token = UserPreferences.getToken(context).firstOrNull()
-
-            if (token.isNullOrBlank()) {
-                errorMessage = "Authentication token not found."
-                isLoading = false
-                return@launch
-            }
-
             try {
-                activities = repository.getMyFeed(token)
+                // The token logic has been removed.
+                activities = repository.getMyFeed()
                 isInitialFeedLoaded = true
                 _isFiltered.value = false
             } catch (e: Exception) {
@@ -71,37 +64,13 @@ class ActivitiesViewModel(
         }
     }
 
-    fun getActivityById(id: String): Activity? {
-        return activities.find { it.id == id }
-    }
-
-    fun updateActivitiesList(newActivities: List<Activity>) {
-        activities = newActivities
-        isInitialFeedLoaded = true
-        _isFiltered.value = true
-    }
-
-    fun clearData() {
-        activities = emptyList()
-        _isFiltered.value = false
-        isInitialFeedLoaded = false
-        // You can reset any other states here if needed
-    }
-
-    // function for the natural language search
     @SuppressLint("MissingPermission")
     fun performNaturalSearch(context: Context) {
         val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
         viewModelScope.launch {
             isLoading = true
             errorMessage = null
-            val token = UserPreferences.getToken(context).firstOrNull()
-            if (token.isNullOrBlank()) {
-                errorMessage = "Authentication token not found"
-                isLoading = false
-                return@launch
-            }
-
+            // The token logic has been removed.
             fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null)
                 .addOnSuccessListener { location ->
                     if (location != null) {
@@ -112,7 +81,8 @@ class ActivitiesViewModel(
                                     userLatitude = location.latitude,
                                     userLongitude = location.longitude
                                 )
-                                val results = repository.naturalSearch(token, searchRequest)
+                                // The token is no longer passed to the repository.
+                                val results = repository.naturalSearch(searchRequest)
                                 updateActivitiesList(results)
                             } catch (e: Exception) {
                                 errorMessage = "Search failed: ${e.message}"
@@ -132,25 +102,20 @@ class ActivitiesViewModel(
         }
     }
 
-    @SuppressLint("MissingPermission") // We'll handle permissions in the UI
+    @SuppressLint("MissingPermission")
     fun fetchNearbyActivities(context: Context) {
         val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
 
         viewModelScope.launch {
-            // First, get the token
-            val token = UserPreferences.getToken(context).firstOrNull()
-            if (token.isNullOrBlank()) { /* Handle error */ return@launch }
-
-            // Then, get the location
+            // The token logic has been removed.
             fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null)
                 .addOnSuccessListener { location ->
                     if (location != null) {
-                        // Location found, now call the repository
                         viewModelScope.launch {
                             try {
-                                isLoading = true // You might want a separate loading state
+                                isLoading = true
+                                // The token is no longer passed to the repository.
                                 nearbyActivities = repository.getNearbyActivities(
-                                    token = token,
                                     latitude = location.latitude,
                                     longitude = location.longitude
                                 )
@@ -163,5 +128,62 @@ class ActivitiesViewModel(
                     }
                 }
         }
+    }
+
+    fun fetchMyEnrollments() {
+        viewModelScope.launch {
+            try {
+                // The token logic has been removed.
+                val enrolled = repository.getMyEnrolledActivities()
+                _myEnrolledActivities.value = enrolled
+                enrolledActivityIds = enrolled.map { it.id }.toSet()
+            } catch (e: Exception) {
+                errorMessage = "Failed to load your courses: ${e.message}"
+            }
+        }
+    }
+
+    fun enrollInActivity(activityId: String) {
+        viewModelScope.launch {
+            try {
+                // The token logic has been removed.
+                repository.enrollInActivity(activityId)
+
+                enrolledActivityIds = enrolledActivityIds + activityId
+                val updatedList = activities.map { activity ->
+                    if (activity.id == activityId) {
+                        activity.copy(
+                            enrollmentInfo = activity.enrollmentInfo?.copy(
+                                enrolledCount = activity.enrollmentInfo.enrolledCount + 1
+                            )
+                        )
+                    } else {
+                        activity
+                    }
+                }
+                activities = updatedList
+                fetchMyEnrollments()
+
+            } catch (e: Exception) {
+                errorMessage = "Enrollment failed: ${e.message}"
+            }
+        }
+    }
+
+    // Unchanged methods
+    fun getActivityById(id: String): Activity? {
+        return activities.find { it.id == id }
+    }
+
+    fun updateActivitiesList(newActivities: List<Activity>) {
+        activities = newActivities
+        isInitialFeedLoaded = true
+        _isFiltered.value = true
+    }
+
+    fun clearData() {
+        activities = emptyList()
+        _isFiltered.value = false
+        isInitialFeedLoaded = false
     }
 }

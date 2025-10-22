@@ -1,5 +1,9 @@
 package com.example.learnverse.ui.screen.admin
 
+import androidx.compose.foundation.gestures.rememberTransformableState
+import androidx.compose.foundation.gestures.transformable
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -17,7 +21,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.navigation.NavController
-import coil.compose.AsyncImage
 import com.example.learnverse.data.model.PendingVerification
 import com.example.learnverse.viewmodel.AdminViewModel
 import com.example.learnverse.viewmodel.AuthViewModel
@@ -33,6 +36,11 @@ fun AdminDashboardScreen(
     val isLoading by adminViewModel.isLoading.collectAsState()
     val errorMessage by adminViewModel.errorMessage.collectAsState()
 
+    // Get the new states for the document viewer using .collectAsState()
+    val isDocumentLoading by adminViewModel.isDocumentLoading.collectAsState()
+    val documentBitmap by adminViewModel.documentBitmap.collectAsState()
+    val documentToViewUrl by adminViewModel.documentToViewUrl.collectAsState()
+
     LaunchedEffect(Unit) {
         adminViewModel.fetchPendingVerifications()
     }
@@ -41,8 +49,7 @@ fun AdminDashboardScreen(
     var requestToReject by remember { mutableStateOf<PendingVerification?>(null) }
 
     // State to control which document is being viewed and show the image dialog
-    var documentToView by remember { mutableStateOf<String?>(null) }
-    val fullBaseUrl = "https://learn-verse-lqd6.onrender.com" // Your base URL
+    val fullBaseUrl = "https://learnverse-sy8l.onrender.com" // Your base URL
 
     Scaffold(
         topBar = {
@@ -78,7 +85,7 @@ fun AdminDashboardScreen(
                             request = request,
                             onApprove = { adminViewModel.approveRequest(request.id) },
                             onReject = { requestToReject = request },
-                            onViewDocument = { url -> documentToView = fullBaseUrl + url }
+                            onViewDocument = { url -> adminViewModel.viewDocument(fullBaseUrl + url) }
                         )
                     }
                 }
@@ -96,10 +103,11 @@ fun AdminDashboardScreen(
             }
 
             // Show the document view dialog when a URL is selected
-            if (documentToView != null) {
+            if (documentToViewUrl != null) {
                 DocumentViewDialog(
-                    url = documentToView!!,
-                    onDismiss = { documentToView = null }
+                    isDocumentLoading = isDocumentLoading,
+                    bitmap = documentBitmap,
+                    onDismiss = { adminViewModel.dismissDocumentView() }
                 )
             }
         }
@@ -192,17 +200,47 @@ fun RejectReasonDialog(
 }
 
 @Composable
-fun DocumentViewDialog(url: String, onDismiss: () -> Unit) {
+fun DocumentViewDialog(
+    isDocumentLoading: Boolean,
+    bitmap: androidx.compose.ui.graphics.ImageBitmap?,
+    onDismiss: () -> Unit
+) {
     Dialog(onDismissRequest = onDismiss) {
+
+        var scale by remember { mutableStateOf(1f) }
+        var offset by remember { mutableStateOf(Offset.Zero) }
+
         Card {
-            // Coil's AsyncImage will load the image from the URL.
-            // NOTE: This will NOT work if the URL requires an authentication header.
-            // A more advanced setup with an authenticated OkHttpClient is needed for that.
-            AsyncImage(
-                model = url,
-                contentDescription = "Verification Document",
-                modifier = Modifier.fillMaxWidth().wrapContentHeight()
-            )
+            Box(
+                modifier = Modifier.fillMaxSize().padding(16.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                if (isDocumentLoading) {
+                    CircularProgressIndicator()
+                } else if (bitmap != null) {
+                    val state = rememberTransformableState { zoomChange, offsetChange, rotationChange ->
+                        scale *= zoomChange
+                        offset += offsetChange
+                    }
+                    Image(
+                        bitmap = bitmap,
+                        contentDescription = "Verification Document",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            // Apply the zoom and pan transformations
+                            .graphicsLayer(
+                                scaleX = scale,
+                                scaleY = scale,
+                                translationX = offset.x,
+                                translationY = offset.y
+                            )
+                            // This modifier detects the zoom and pan gestures
+                            .transformable(state = state)
+                    )
+                } else {
+                    Text("Failed to load document.")
+                }
+            }
         }
     }
 }

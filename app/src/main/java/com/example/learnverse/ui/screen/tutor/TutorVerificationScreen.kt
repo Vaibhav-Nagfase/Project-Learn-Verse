@@ -58,6 +58,7 @@ fun TutorVerificationScreen(
     // --- UI State Handling ---
     LaunchedEffect(uiState) {
         if (uiState is VerificationUiState.Success) {
+            authViewModel.refreshTutorStatus()
             navController.popBackStack()
         }
     }

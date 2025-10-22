@@ -10,6 +10,8 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -31,6 +33,10 @@ fun ActivityDetailScreen(
     // This is fast because the data is already in memory.
     val activity = activitiesViewModel.getActivityById(activityId)
 
+    // --- State for enrollment status ---
+    // This is simple, direct, bug-free, and still fully reactive.
+    val isEnrolled = activitiesViewModel.isEnrolled(activityId)
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -47,11 +53,15 @@ fun ActivityDetailScreen(
             )
         },
         floatingActionButton = {
-            ExtendedFloatingActionButton(
-                onClick = { /* TODO: Handle enrollment click, navigate to payment gateway in future */ },
-                icon = { Icon(Icons.Default.Check, contentDescription = "Enroll") },
-                text = { Text("Enroll Now") }
-            )
+
+            Button(
+                onClick = { activitiesViewModel.enrollInActivity(activityId) },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !isEnrolled // Button is disabled if already enrolled
+            ) {
+                Icon(Icons.Default.Check, contentDescription = "Enroll")
+                Text(if (isEnrolled) "Successfully Enrolled" else "Enroll Now")
+            }
         },
         floatingActionButtonPosition = FabPosition.Center
     ) { paddingValues ->

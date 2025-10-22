@@ -1,6 +1,5 @@
 package com.example.learnverse.viewmodel
 
-import android.content.Context
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
@@ -8,13 +7,11 @@ import androidx.lifecycle.viewModelScope
 import com.example.learnverse.data.model.Activity
 import com.example.learnverse.data.model.ActivityFilter
 import com.example.learnverse.data.repository.ActivitiesRepository
-import com.example.learnverse.utils.UserPreferences
-import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 
+// The 'context' dependency has been removed as it's no longer needed.
 class FilterViewModel(
-    private val repository: ActivitiesRepository,
-    private val context: Context // For getting the token
+    private val repository: ActivitiesRepository
 ) : ViewModel() {
 
     // --- State for each filter option on the screen ---
@@ -46,16 +43,10 @@ class FilterViewModel(
         sortBy.value = null
     }
 
-
     fun applyFilters(onResult: (List<Activity>) -> Unit) {
         viewModelScope.launch {
             isLoading.value = true
-            val token = UserPreferences.getToken(context).firstOrNull()
-            if (token.isNullOrBlank()) {
-                // Handle not being logged in
-                isLoading.value = false
-                return@launch
-            }
+            // The logic to get the token has been completely removed.
 
             // Build the filter object from the current state of the ViewModel
             val filter = ActivityFilter(
@@ -69,7 +60,8 @@ class FilterViewModel(
             )
 
             try {
-                val results = repository.filterActivities(token, filter)
+                // The token is no longer passed to the repository method.
+                val results = repository.filterActivities(filter)
                 onResult(results) // Send the results back to the previous screen
             } catch (e: Exception) {
                 e.printStackTrace()
