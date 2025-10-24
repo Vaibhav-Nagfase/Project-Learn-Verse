@@ -1,60 +1,93 @@
 package com.example.learnverse.data.repository
 
+import android.util.Log
 import com.example.learnverse.data.remote.ApiService
-import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.callbackFlow
-import okhttp3.*
-import okhttp3.MediaType.Companion.toMediaTypeOrNull // Import correct extension
-import okhttp3.RequestBody.Companion.toRequestBody // Import correct extension
-import okhttp3.sse.EventSource
-import okhttp3.sse.EventSourceListener
-import okhttp3.sse.EventSources
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOn
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
+import org.json.JSONObject
 
 class ChatRepository(
     private val api: ApiService,
     private val okHttpClient: OkHttpClient
 ) {
 
-    // --- UPDATED FUNCTION SIGNATURE ---
-    fun askQuestionStream(question: String, token: String): Flow<String> = callbackFlow {
+    companion object {
+        private const val TAG = "ChatRepository"
+        // ✅ Change to your computer's IP or keep 127.0.0.1 for emulator
+        private const val BASE_URL = "http://127.0.0.1:8080"
+        // For real device, use: "http://192.168.1.XXX:8080" (your computer's local IP)
+    }
 
-        val requestBuilder = Request.Builder()
-            .url("https://learnverse-sy8l.onrender.com/api/assistant/chat")
-            .header("Content-Type", "application/json")
-            // --- MANUALLY ADD THE TOKEN ---
-            .header("Authorization", "Bearer $token")
-            // The new "skip" header
-            .header("X-Skip-Interceptor-Auth", "true")
-            .post(
-                "{\"message\":\"$question\"}".toRequestBody("application/json".toMediaTypeOrNull())
-            )
+    fun askQuestionStream(question: String, token: String): Flow<String> = flow {
+        val requestBody = JSONObject().apply {
+            put("message", question)
+        }.toString().toRequestBody("application/json".toMediaTypeOrNull())
 
-        val request = requestBuilder.build()
+        val request = Request.Builder()
+            .url("$BASE_URL/api/assistant/chat")
+            .addHeader("Authorization", "Bearer $token")
+            .addHeader("Content-Type", "application/json")
+            .addHeader("Accept", "text/event-stream")
+            .addHeader("User-Agent", "LearnVerseApp/1.0 (Android)")
+            .addHeader("Origin", BASE_URL)
+            .addHeader("X-Requested-With", "XMLHttpRequest")
+            .post(requestBody)
+            .build()
 
-        val listener = object : EventSourceListener() {
-            override fun onEvent(eventSource: EventSource, id: String?, type: String?, data: String) {
-                trySend(data)
-            }
+        Log.d(TAG, "🚀 Request: $question")
 
-            override fun onClosed(eventSource: EventSource) {
-                close()
-            }
+        // ✅ REMOVE withContext - flow already has flowOn()
+        try {
+            val response = okHttpClient.newCall(request).execute()
 
-            override fun onFailure(eventSource: EventSource, t: Throwable?, response: Response?) {
-                // If it fails with 401 now, the token is invalid
-                if (response?.code == 401) {
-                    close(RuntimeException("Invalid token. Please log out and log in again."))
-                } else {
-                    close(t ?: RuntimeException("Unknown streaming error"))
+            if (!response.isSuccessful) {
+                val errorBody = response.body?.string() ?: "Unknown error"
+                Log.e(TAG, "❌ HTTP ${response.code}: $errorBody")
+
+                when (response.code) {
+                    400 -> throw Exception("Bad request. Check your profile completion.")
+                    401 -> throw Exception("Session expired. Please login again.")
+                    403 -> throw Exception("Please complete your profile first.")
+                    else -> throw Exception("Server error: ${response.code}")
                 }
             }
-        }
 
-        val eventSource = EventSources.createFactory(okHttpClient).newEventSource(request, listener)
+            val reader = response.body?.byteStream()?.bufferedReader()
+                ?: throw Exception("No response from server")
 
-        awaitClose {
-            eventSource.cancel()
+            Log.d(TAG, "✅ Connected, streaming...")
+
+            reader.use { bufferedReader ->
+                var line: String?
+
+                while (bufferedReader.readLine().also { line = it } != null) {
+                    val currentLine = line ?: continue
+
+                    // SSE format: "data: content"
+                    if (currentLine.startsWith("data: ")) {
+                        val content = currentLine.substring(6).trim()
+
+                        if (content.isEmpty() || content == "[DONE]") {
+                            continue
+                        }
+
+                        Log.d(TAG, "📥 Chunk: ${content.take(30)}...")
+                        emit(content) // ✅ Emit directly without context switching
+                    }
+                }
+
+                Log.d(TAG, "✅ Complete")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Error: ${e.message}", e)
+            throw Exception("Streaming failed: ${e.message}")
         }
-    }
+    }.flowOn(Dispatchers.IO) // ✅ Single flowOn at the end
+
 }
