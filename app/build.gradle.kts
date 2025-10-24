@@ -53,6 +53,10 @@ dependencies {
     implementation("com.auth0.android:jwtdecode:2.0.2")
     implementation("io.coil-kt:coil-compose:2.6.0")
 
+    implementation("io.noties.markwon:core:4.6.2")
+    implementation("io.noties.markwon:ext-strikethrough:4.6.2")
+    implementation("io.noties.markwon:linkify:4.6.2")
+
     // --- DEPENDENCY CLEANUP ---
 
     // Keep the navigation dependency (its version is managed separately)
