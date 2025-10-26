@@ -2,15 +2,18 @@ package com.example.learnverse
 
 import android.annotation.SuppressLint
 import android.app.Application
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -20,6 +23,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -36,6 +40,8 @@ import com.example.learnverse.ui.screen.detail.ActivityDetailScreen
 import com.example.learnverse.ui.screen.enrollment.MyCoursesScreen
 import com.example.learnverse.ui.screen.filter.FilterScreen
 import com.example.learnverse.ui.screen.home.HomeScreen
+import com.example.learnverse.ui.screen.community.DiscoverScreen
+import com.example.learnverse.ui.screen.community.PostDetailScreen
 import com.example.learnverse.ui.screen.interest.InterestManagementScreen
 import com.example.learnverse.ui.screen.profile.ProfileScreen
 import com.example.learnverse.ui.screen.search.SearchScreen
@@ -47,6 +53,7 @@ import com.example.learnverse.viewmodel.*
 
 
 class MainActivity : ComponentActivity() {
+    @RequiresApi(Build.VERSION_CODES.O)
     @SuppressLint("ViewModelConstructorInComposable")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -64,6 +71,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun LearnVerseApp() {
     val context = LocalContext.current.applicationContext
@@ -87,6 +95,7 @@ fun LearnVerseApp() {
     val adminRepository = remember { AdminRepository(apiService) }
     val profileRepository = remember { ProfileRepository(apiService) }
     val chatRepository = remember { ChatRepository(apiService, okHttpClient) }
+    val communityRepository = remember { CommunityRepository(apiService) }
 
     // --- VIEWMODELS ---
     val authViewModel: AuthViewModel = viewModel(
@@ -110,6 +119,9 @@ fun LearnVerseApp() {
     )
     val chatViewModel: ChatViewModel = viewModel(
         factory = ChatViewModelFactory(chatRepository, authRepository)
+    )
+    val communityViewModel: CommunityViewModel = viewModel(
+        factory = CommunityViewModelFactory(communityRepository, authRepository)
     )
 
     // --- State Observation ---
@@ -149,7 +161,8 @@ fun LearnVerseApp() {
                         filterViewModel = filterViewModel,
                         tutorVerificationViewModel = tutorVerificationViewModel,
                         profileViewModel = profileViewModel,
-                        chatViewModel = chatViewModel
+                        chatViewModel = chatViewModel,
+                        communityViewModel = communityViewModel
                     )
                 }
             }
@@ -166,6 +179,7 @@ fun LoginNavGraph(authViewModel: AuthViewModel) {
     }
 }
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun MainNavGraph(
     authViewModel: AuthViewModel,
@@ -174,7 +188,8 @@ fun MainNavGraph(
     filterViewModel: FilterViewModel,
     tutorVerificationViewModel: TutorVerificationViewModel,
     profileViewModel: ProfileViewModel,
-    chatViewModel: ChatViewModel
+    chatViewModel: ChatViewModel,
+    communityViewModel: CommunityViewModel
 ) {
     val navController = rememberNavController()
     NavHost(navController = navController, startDestination = startDestination) {
@@ -195,6 +210,29 @@ fun MainNavGraph(
                 authViewModel = authViewModel
             )
         }
+
+        composable("discover") { // Or whatever name you choose for the feed
+            DiscoverScreen(navController, communityViewModel, authViewModel) // Pass necessary ViewModels
+        }
+
+        composable(
+            route = "postDetail/{postId}",
+            arguments = listOf(navArgument("postId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val postId = backStackEntry.arguments?.getString("postId")
+            if (postId != null) {
+                PostDetailScreen(
+                    postId = postId,
+                    navController = navController,
+                    communityViewModel = communityViewModel,
+                    authViewModel = authViewModel
+                )
+            } else {
+                // Handle error: postId not found, maybe navigate back or show error screen
+                Text("Error: Post ID missing")
+            }
+        }
+
         composable("activityDetail/{activityId}") { backStackEntry ->
             ActivityDetailScreen(
                 activityId = backStackEntry.arguments?.getString("activityId") ?: "",

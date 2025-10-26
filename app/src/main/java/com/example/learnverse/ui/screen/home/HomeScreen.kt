@@ -1,6 +1,11 @@
 package com.example.learnverse.ui.screen.home
 
-import android.Manifest
+import android.Manifest // Make sure this is imported
+import android.app.Activity.RESULT_OK
+import android.content.Intent
+import android.speech.RecognizerIntent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -28,6 +33,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import androidx.navigation.compose.currentBackStackEntryAsState
 import com.example.learnverse.R
 import com.example.learnverse.data.model.Activity
 import com.example.learnverse.viewmodel.ActivitiesViewModel
@@ -297,8 +303,49 @@ fun HomeHeader(onProfileClick: () -> Unit) {
     }
 }
 
+@OptIn(ExperimentalPermissionsApi::class)
 @Composable
 fun SearchCard(searchQuery: String, onQueryChange: (String) -> Unit, onSearch: () -> Unit) {
+    // 1. Permission State for Recording Audio
+    val recordAudioPermissionState = rememberPermissionState(
+        Manifest.permission.RECORD_AUDIO
+    )
+
+    // 2. Activity Result Launcher for Speech Recognition
+    val speechRecognizerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == RESULT_OK) {
+            val data: Intent? = result.data
+            val results: ArrayList<String>? =
+                data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
+            // Update the query with the first result, if available
+            results?.firstOrNull()?.let { recognizedText ->
+                onQueryChange(recognizedText) // Update the state
+                onSearch() // Optionally trigger search immediately
+            }
+        }
+    }
+
+    // 3. Function to launch the speech recognizer intent
+    val launchSpeechRecognizer: () -> Unit = {
+        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+            putExtra(
+                RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+                RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
+            )
+            putExtra(RecognizerIntent.EXTRA_PROMPT, "Speak now...")
+        }
+        try {
+            speechRecognizerLauncher.launch(intent)
+        } catch (e: Exception) {
+            // Handle case where speech recognition is not available
+            println("Speech recognition not available: ${e.message}")
+            // You might want to show a Snackbar or Toast message here
+        }
+    }
+
+
     Card(
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = Color(0xFFE0F7FA))
@@ -312,7 +359,21 @@ fun SearchCard(searchQuery: String, onQueryChange: (String) -> Unit, onSearch: (
                 onValueChange = onQueryChange,
                 placeholder = { Text("Search Course") },
                 leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-                trailingIcon = { Icon(Icons.Default.Mic, contentDescription = null) },
+                trailingIcon = {
+                    IconButton(onClick = {
+                        if (recordAudioPermissionState.status.isGranted) {
+                            launchSpeechRecognizer()
+                        } else {
+                            recordAudioPermissionState.launchPermissionRequest()
+                        }
+                    }) {
+                        Icon(
+                            Icons.Default.Mic,
+                            contentDescription = "Speak to search",
+                            tint = if (recordAudioPermissionState.status.isGranted) MaterialTheme.colorScheme.primary else Color.Gray // Optional: Change color based on permission
+                        )
+                    }
+                },
                 modifier = Modifier.fillMaxWidth(),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                 keyboardActions = KeyboardActions(onSearch = { onSearch() })
@@ -349,28 +410,39 @@ fun NearbyActivityCard(activity: Activity, onClick: () -> Unit) {
 
 @Composable
 fun BottomNavigationBar(navController: NavController) {
-    var selectedItem by remember { mutableStateOf(0) }
-    // Using a list of pairs for route and title
+    // Get the current back stack entry to determine the selected route
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route
+
+    // Define the navigation items including "Discover"
     val items = listOf(
-        "home" to "Explore",
-        "feed" to "Feed",
-        "post" to "Post" // Placeholder
+        // Route      Title       Icon
+        Triple("home", "Explore", Icons.Default.Explore),
+        Triple("feed", "Feed", Icons.Default.Article), // Or Search? Check icon
+        Triple("discover", "Discover", Icons.Default.Groups), // <-- NEW ITEM
+        // Triple("post", "Post", Icons.Default.AddCircle) // Keep or remove "Post" if not needed
     )
-    val icons = listOf(Icons.Default.Explore, Icons.Default.Article, Icons.Default.AddCircle)
 
     NavigationBar {
-        items.forEachIndexed { index, item ->
+        items.forEach { (route, title, icon) -> // Destructure the Triple
             NavigationBarItem(
-                icon = { Icon(icons[index], contentDescription = item.second) },
-                label = { Text(item.second) },
-                selected = selectedItem == index,
+                icon = { Icon(icon, contentDescription = title) },
+                label = { Text(title) },
+                // Determine selected state based on the current route
+                selected = currentRoute == route,
                 onClick = {
-                    selectedItem = index
-                    // Handle navigation for each tab
-                    navController.navigate(item.first) {
-                        // Pop up to the start destination of the graph to avoid building up a large back stack
-                        popUpTo(navController.graph.startDestinationId)
-                        launchSingleTop = true
+                    // Navigate only if the selected item is different
+                    if (currentRoute != route) {
+                        navController.navigate(route) {
+                            // Pop up to the start destination to avoid building up back stack
+                            popUpTo(navController.graph.startDestinationId) {
+                                saveState = true
+                            }
+                            // Avoid multiple copies of the same destination when reselecting
+                            launchSingleTop = true
+                            // Restore state when reselecting a previously selected item
+                            restoreState = true
+                        }
                     }
                 }
             )

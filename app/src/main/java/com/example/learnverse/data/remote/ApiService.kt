@@ -19,6 +19,8 @@ import retrofit2.http.Part
 import retrofit2.http.Path
 import retrofit2.http.Url
 import retrofit2.Call
+import retrofit2.http.Field
+import retrofit2.http.FormUrlEncoded
 import retrofit2.http.Streaming
 
 interface ApiService {
@@ -162,4 +164,72 @@ interface ApiService {
     @PUT("api/user/profile/update_profile")
     suspend fun updateProfile(@Body profileRequest: UserProfileRequest): Response<UserProfile>
 
+
+    // --- Community Post Endpoints ---
+
+    @Multipart // Use Multipart for file uploads
+    @POST("api/community/posts")
+    suspend fun createPost(
+        @Part("content") content: RequestBody?, // Nullable if only media
+        @Part file: MultipartBody.Part? // Nullable if only text
+    ): Response<CommunityPost> // Assuming backend returns the created post
+
+    @GET("api/community/posts/feed")
+    suspend fun getCommunityFeed(
+        @Query("page") page: Int = 0,
+        @Query("size") size: Int = 10
+    ): Response<CommunityFeedResponse>
+
+    @POST("api/community/posts/{postId}/like")
+    suspend fun likePost(@Path("postId") postId: String): Response<CommunityPost> // Returns updated post
+
+    // Assuming unlike uses the same endpoint, check with backend if DELETE is needed
+    // @DELETE("api/community/posts/{postId}/like")
+    // suspend fun unlikePost(@Path("postId") postId: String): Response<CommunityPost>
+
+    @FormUrlEncoded
+    @POST("api/community/posts/{postId}/comments")
+    suspend fun addComment(
+        @Path("postId") postId: String,
+        @Field("content") content: String
+    ): Response<CommunityPost> // Returns updated post with new comment
+
+    @POST("api/community/posts/{postId}/comments/{commentId}/like")
+    suspend fun likeComment(
+        @Path("postId") postId: String,
+        @Path("commentId") commentId: String
+    ): Response<CommunityPost> // Returns updated post
+
+    @Multipart // Assuming update might also change media
+    @PUT("api/community/posts/{postId}")
+    suspend fun updatePost(
+        @Path("postId") postId: String,
+        @Part("content") content: RequestBody?,
+        @Part file: MultipartBody.Part?
+        // Add other fields if needed for update
+    ): Response<CommunityPost> // Assuming returns updated post
+
+    @DELETE("api/community/posts/{postId}")
+    suspend fun deletePost(@Path("postId") postId: String): Response<Unit>
+
+    @GET("api/community/posts/user/{userId}")
+    suspend fun getUserPosts(
+        @Path("userId") userId: String,
+        @Query("page") page: Int = 0,
+        @Query("size") size: Int = 10
+    ): Response<CommunityFeedResponse> // Assuming same response structure as feed
+
+    // --- Follow Endpoints ---
+
+    @POST("api/community/follow/{userIdToFollow}")
+    suspend fun followUser(@Path("userIdToFollow") userIdToFollow: String): Response<FollowResponse>
+
+    @DELETE("api/community/follow/{userIdToUnfollow}")
+    suspend fun unfollowUser(@Path("userIdToUnfollow") userIdToUnfollow: String): Response<Unit>
+
+    @GET("api/community/follow/following")
+    suspend fun getFollowingList(): Response<List<String>> // List of user IDs
+
+    @GET("api/community/follow/stats/{userId}")
+    suspend fun getFollowStats(@Path("userId") userId: String): Response<FollowStats>
 }

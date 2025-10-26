@@ -1,6 +1,11 @@
 package com.example.learnverse.ui.screen.search
 
 import android.Manifest
+import android.app.Activity.RESULT_OK
+import android.content.Intent
+import android.speech.RecognizerIntent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -78,7 +83,7 @@ fun SearchScreen(
     }
 
     val activities = activitiesViewModel.activities
-    val searchQuery = activitiesViewModel.searchQuery
+    var currentSearchQuery by remember { mutableStateOf(activitiesViewModel.searchQuery) }
     val isLoading = activitiesViewModel.isLoading
 
     val isFiltered by activitiesViewModel.isFiltered
@@ -87,6 +92,47 @@ fun SearchScreen(
     // Permission state for location (needed for natural search)
     val locationPermissionState = rememberPermissionState(Manifest.permission.ACCESS_FINE_LOCATION)
 
+    // --- Add Speech Recognition Logic ---
+    val recordAudioPermissionState = rememberPermissionState(
+        Manifest.permission.RECORD_AUDIO
+    )
+    val speechRecognizerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == RESULT_OK) {
+            val data: Intent? = result.data
+            val results: ArrayList<String>? =
+                data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
+            results?.firstOrNull()?.let { recognizedText ->
+                // Update the ViewModel's query
+                activitiesViewModel.searchQuery = recognizedText
+                // Update local state for TextField immediately
+                currentSearchQuery = recognizedText
+                // Trigger search
+                if (locationPermissionState.status.isGranted) {
+                    activitiesViewModel.performNaturalSearch(context)
+                } else {
+                    locationPermissionState.launchPermissionRequest() // Ask for location if needed for search
+                }
+            }
+        }
+    }
+    val launchSpeechRecognizer: () -> Unit = {
+        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+            putExtra(
+                RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+                RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
+            )
+            putExtra(RecognizerIntent.EXTRA_PROMPT, "Speak now...")
+        }
+        try {
+            speechRecognizerLauncher.launch(intent)
+        } catch (e: Exception) {
+            println("Speech recognition not available: ${e.message}")
+            // Show Snackbar or Toast
+        }
+    }
+    // --- End of Speech Recognition Logic ---
 
     Column(modifier = Modifier
         .fillMaxSize()
@@ -101,13 +147,31 @@ fun SearchScreen(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             OutlinedTextField(
-                value = searchQuery,
+                value = currentSearchQuery,
                 onValueChange = { newValue ->
                     // You now set the value directly on the ViewModel
-                    activitiesViewModel.searchQuery = newValue  },
+                    currentSearchQuery = newValue
+                    activitiesViewModel.searchQuery = newValue
+                },
                 label = { Text("Describe the activity you're looking for...") },
                 leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-                trailingIcon = { Icon(Icons.Default.Mic, contentDescription = null) },
+                // --- Make Trailing Icon Clickable ---
+                trailingIcon = {
+                    IconButton(onClick = {
+                        if (recordAudioPermissionState.status.isGranted) {
+                            launchSpeechRecognizer()
+                        } else {
+                            recordAudioPermissionState.launchPermissionRequest()
+                        }
+                    }) {
+                        Icon(
+                            Icons.Default.Mic,
+                            contentDescription = "Speak to search",
+                            tint = if (recordAudioPermissionState.status.isGranted) MaterialTheme.colorScheme.primary else Color.Gray
+                        )
+                    }
+                },
+                // --- End of Trailing Icon Change ---
                 modifier = Modifier.weight(1f), // Use weight to fill available space
                 minLines = 2,
                 keyboardActions = KeyboardActions(onSearch = {
