@@ -35,7 +35,6 @@ import com.example.learnverse.ui.screen.admin.AdminDashboardScreen
 import com.example.learnverse.ui.screen.auth.InterestSelectionDialog
 import com.example.learnverse.ui.screen.auth.LoginScreen
 import com.example.learnverse.ui.screen.auth.SignUpScreen
-import com.example.learnverse.ui.screen.chatbot.ChatScreen
 import com.example.learnverse.ui.screen.detail.ActivityDetailScreen
 import com.example.learnverse.ui.screen.enrollment.MyCoursesScreen
 import com.example.learnverse.ui.screen.filter.FilterScreen
@@ -94,7 +93,6 @@ fun LearnVerseApp() {
     val activitiesRepository = remember { ActivitiesRepository(apiService) }
     val adminRepository = remember { AdminRepository(apiService) }
     val profileRepository = remember { ProfileRepository(apiService) }
-    val chatRepository = remember { ChatRepository(apiService, okHttpClient) }
     val communityRepository = remember { CommunityRepository(apiService) }
 
     // --- VIEWMODELS ---
@@ -117,9 +115,7 @@ fun LearnVerseApp() {
     val profileViewModel: ProfileViewModel = viewModel(
         factory = ProfileViewModelFactory(profileRepository)
     )
-    val chatViewModel: ChatViewModel = viewModel(
-        factory = ChatViewModelFactory(chatRepository, authRepository)
-    )
+
     val communityViewModel: CommunityViewModel = viewModel(
         factory = CommunityViewModelFactory(communityRepository, authRepository)
     )
@@ -161,7 +157,6 @@ fun LearnVerseApp() {
                         filterViewModel = filterViewModel,
                         tutorVerificationViewModel = tutorVerificationViewModel,
                         profileViewModel = profileViewModel,
-                        chatViewModel = chatViewModel,
                         communityViewModel = communityViewModel
                     )
                 }
@@ -188,7 +183,6 @@ fun MainNavGraph(
     filterViewModel: FilterViewModel,
     tutorVerificationViewModel: TutorVerificationViewModel,
     profileViewModel: ProfileViewModel,
-    chatViewModel: ChatViewModel,
     communityViewModel: CommunityViewModel
 ) {
     val navController = rememberNavController()
@@ -257,9 +251,7 @@ fun MainNavGraph(
         composable("my_profile") {
             ProfileScreen(navController, profileViewModel, authViewModel, isUpdating = true)
         }
-        composable("chat") {
-            ChatScreen(navController, chatViewModel)
-        }
+
     }
 
     LaunchedEffect(Unit) {

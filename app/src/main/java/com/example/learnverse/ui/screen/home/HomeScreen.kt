@@ -181,11 +181,7 @@ fun HomeScreen(
             },
             floatingActionButton = {
                 FloatingActionButton(onClick = {
-                    when (hasProfile) {
-                        true -> navController.navigate("chat")      // Profile exists, go to chat
-                        false -> navController.navigate("profile_setup") // No profile, go to setup
-                        null -> { /* Do nothing while profile status is loading */ }
-                    }
+                    
                 }) {
                     Icon(Icons.Default.Chat, contentDescription = "Learning Assistant")
                 }
