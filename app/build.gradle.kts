@@ -10,7 +10,7 @@ android {
 
     defaultConfig {
         applicationId = "com.example.learnverse"
-        minSdk = 24
+        minSdk = 26
         targetSdk = 35
         versionCode = 1
         versionName = "1.0"
@@ -45,8 +45,12 @@ dependencies {
     implementation("com.google.accompanist:accompanist-permissions:0.34.0")
     implementation("com.squareup.retrofit2:retrofit:2.11.0")
     implementation("com.squareup.retrofit2:converter-gson:2.11.0")
-    implementation("com.squareup.okhttp3:logging-interceptor:5.0.0-alpha.14")
-    implementation("com.squareup.okhttp3:okhttp-sse:4.12.0") // Use the latest stable version
+
+    val okhttpVersion = "4.12.0" // Or check for the absolute latest stable version
+    implementation("com.squareup.okhttp3:okhttp:$okhttpVersion") // Add core okhttp
+    implementation("com.squareup.okhttp3:logging-interceptor:$okhttpVersion") // Match version
+    implementation("com.squareup.okhttp3:okhttp-sse:$okhttpVersion") // Match version
+
     implementation("androidx.datastore:datastore-preferences:1.1.1")
     implementation(libs.play.services.location)
 
