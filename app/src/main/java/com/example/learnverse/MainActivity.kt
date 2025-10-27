@@ -46,6 +46,7 @@ import com.example.learnverse.ui.screen.profile.ProfileScreen
 import com.example.learnverse.ui.screen.search.SearchScreen
 import com.example.learnverse.ui.screen.tutor.CreateActivityScreen
 import com.example.learnverse.ui.screen.tutor.TutorDashboardScreen
+import com.example.learnverse.ui.screen.tutor.TutorProfileScreen
 import com.example.learnverse.ui.screen.tutor.TutorVerificationScreen
 import com.example.learnverse.ui.theme.LearnVerseTheme
 import com.example.learnverse.viewmodel.*
@@ -250,6 +251,22 @@ fun MainNavGraph(
         }
         composable("my_profile") {
             ProfileScreen(navController, profileViewModel, authViewModel, isUpdating = true)
+        }
+
+        composable(
+            route = "tutorProfile/{tutorId}",
+            arguments = listOf(navArgument("tutorId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val tutorIdArg = backStackEntry.arguments?.getString("tutorId")
+            if (tutorIdArg != null) {
+                TutorProfileScreen(
+                    tutorId = tutorIdArg,
+                    navController = navController,
+                    authViewModel = authViewModel         // Pass authViewModel
+                )
+            } else {
+                Text("Error: Tutor ID missing") // Handle error
+            }
         }
 
     }

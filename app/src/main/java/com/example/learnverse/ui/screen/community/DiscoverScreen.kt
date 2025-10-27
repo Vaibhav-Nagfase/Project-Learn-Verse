@@ -116,8 +116,8 @@ fun DiscoverScreen(
                             onCommentClick = { navController.navigate("postDetail/${post.id}") },
                             onFollowClick = { communityViewModel.followTutor(post.authorId) },
                             onUnfollowClick = { communityViewModel.unfollowTutor(post.authorId) },
-                            onAuthorClick = { /* TODO: Navigate to Tutor Profile */ },
-                            onPostClick = { navController.navigate("postDetail/${post.id}") }
+                            onAuthorClick = { navController.navigate("tutorProfile/${post.authorId}") },
+                            onPostClick = { /* TODO */ }
                         )
                     }
 

@@ -135,7 +135,7 @@ fun PostDetailScreen(
                                 onCommentClick = { /* Already here */ },
                                 onFollowClick = { communityViewModel.followTutor(selectedPost!!.authorId) },
                                 onUnfollowClick = { communityViewModel.unfollowTutor(selectedPost!!.authorId) },
-                                onAuthorClick = { /* TODO: Navigate to Tutor Profile */ },
+                                onAuthorClick = { navController.navigate("tutorProfile/${selectedPost!!.authorId}") },
                                 onPostClick = { /* Already here */ }
                             )
                         }
