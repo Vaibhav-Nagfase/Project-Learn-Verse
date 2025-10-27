@@ -114,13 +114,12 @@ private fun parseMarkdown(text: String): List<MarkdownElement> {
             }
 
             // Bullet point: starts with * or -
-            trimmedLine.startsWith("* ") || trimmedLine.startsWith("- ") ||
-                    trimmedLine.startsWith("•") -> {
+            trimmedLine.startsWith("*") || trimmedLine.startsWith("•") -> {
                 val bulletText = trimmedLine
-                    .removePrefix("* ")
-                    .removePrefix("- ")
-                    .removePrefix("• ")
+                    .removePrefix("*")
+                    .removePrefix("•")
                     .trim()
+
                 if (bulletText.isNotBlank()) {
                     elements.add(MarkdownElement.BulletPoint(bulletText))
                 }
