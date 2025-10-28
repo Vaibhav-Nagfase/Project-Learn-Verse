@@ -6,6 +6,7 @@ import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -28,8 +29,6 @@ fun MeetingTab(
 ) {
     val videoContent = activity.videoContent
     val hasMeeting = videoContent?.meetingLink != null
-
-    // Show meeting only if tutor (owner) or enrolled user
     val canViewMeeting = isTutor || isEnrolled
 
     var showChooser by remember { mutableStateOf(false) }
@@ -98,128 +97,130 @@ fun MeetingTab(
         return
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
+    // Changed Column to LazyColumn for scrolling
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         // Meeting Card
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.primaryContainer
-            )
-        ) {
-            Column(
-                modifier = Modifier.padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer
+                )
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                Column(
+                    modifier = Modifier.padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            Icons.Default.VideoCall,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(32.dp)
-                        )
-                        Spacer(Modifier.width(12.dp))
-                        Text(
-                            "Live Meeting",
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                Icons.Default.VideoCall,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(32.dp)
+                            )
+                            Spacer(Modifier.width(12.dp))
+                            Text(
+                                "Live Meeting",
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
 
-                    // Edit/Delete buttons (only for tutor)
-                    if (isTutor) {
-                        Row {
-                            IconButton(onClick = onEdit) {
-                                Icon(Icons.Default.Edit, "Edit")
-                            }
-                            IconButton(onClick = { showDeleteDialog = true }) {
-                                Icon(
-                                    Icons.Default.Delete,
-                                    "Delete",
-                                    tint = MaterialTheme.colorScheme.error
-                                )
+                        if (isTutor) {
+                            Row {
+                                IconButton(onClick = onEdit) {
+                                    Icon(Icons.Default.Edit, "Edit")
+                                }
+                                IconButton(onClick = { showDeleteDialog = true }) {
+                                    Icon(
+                                        Icons.Default.Delete,
+                                        "Delete",
+                                        tint = MaterialTheme.colorScheme.error
+                                    )
+                                }
                             }
                         }
                     }
-                }
 
-                Divider()
+                    Divider()
 
-                // Platform
-                videoContent.platform?.let { platform ->
-                    InfoRowMeeting(
-                        icon = Icons.Default.Computer,
-                        label = "Platform",
-                        value = platform
-                    )
-                }
+                    videoContent.platform?.let { platform ->
+                        InfoRowMeeting(
+                            icon = Icons.Default.Computer,
+                            label = "Platform",
+                            value = platform
+                        )
+                    }
 
-                // Meeting ID
-                videoContent.meetingId?.let { meetingId ->
-                    InfoRowMeeting(
-                        icon = Icons.Default.Tag,
-                        label = "Meeting ID",
-                        value = meetingId
-                    )
-                }
+                    videoContent.meetingId?.let { meetingId ->
+                        InfoRowMeeting(
+                            icon = Icons.Default.Tag,
+                            label = "Meeting ID",
+                            value = meetingId
+                        )
+                    }
 
-                // Passcode
-                videoContent.passcode?.let { passcode ->
-                    InfoRowMeeting(
-                        icon = Icons.Default.Lock,
-                        label = "Passcode",
-                        value = passcode
-                    )
+                    videoContent.passcode?.let { passcode ->
+                        InfoRowMeeting(
+                            icon = Icons.Default.Lock,
+                            label = "Passcode",
+                            value = passcode
+                        )
+                    }
                 }
             }
         }
 
         // Join Button
-        Button(
-            onClick = { showChooser = true },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.primary
-            )
-        ) {
-            Icon(Icons.Default.Launch, contentDescription = null)
-            Spacer(Modifier.width(8.dp))
-            Text(
-                "Join Meeting",
-                style = MaterialTheme.typography.titleMedium
-            )
+        item {
+            Button(
+                onClick = { showChooser = true },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary
+                )
+            ) {
+                Icon(Icons.Default.Launch, contentDescription = null)
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    "Join Meeting",
+                    style = MaterialTheme.typography.titleMedium
+                )
+            }
         }
 
         // Instructions
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.secondaryContainer
-            )
-        ) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Text(
-                    "How to Join",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer
                 )
-                Text("1. Click 'Join Meeting' button above")
-                Text("2. Choose to open in browser or app")
-                Text("3. Enter Meeting ID and Passcode if required")
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        "How to Join",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text("1. Click 'Join Meeting' button above")
+                    Text("2. Choose to open in browser or app")
+                    Text("3. Enter Meeting ID and Passcode if required")
+                }
             }
         }
     }

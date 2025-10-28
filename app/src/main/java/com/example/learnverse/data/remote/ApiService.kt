@@ -248,14 +248,56 @@ interface ApiService {
         @Part banner: MultipartBody.Part
     ): Response<Map<String, Any>>
 
+
     /**
      * Add review to activity
      */
     @POST("api/activities/{activityId}/reviews")
     suspend fun addReview(
         @Path("activityId") activityId: String,
-        @Body reviewData: Map<String, Any>
-    ): Response<Map<String, Any>>
+        @Body request: CreateReviewRequest
+    ): Response<AddReviewResponse>
+
+    /**
+     * Get all reviews for an activity (PUBLIC)
+     */
+    @GET("api/activities/{activityId}/reviews")
+    suspend fun getActivityReviews(
+        @Path("activityId") activityId: String,
+        @Query("page") page: Int = 0,
+        @Query("size") size: Int = 10
+    ): Response<ReviewsResponse>
+
+    /**
+     * Update own review
+     */
+    @PUT("api/reviews/{reviewId}")
+    suspend fun updateReview(
+        @Path("reviewId") reviewId: String,
+        @Body request: UpdateReviewRequest
+    ): Response<UpdateReviewResponse>
+
+    /**
+     * Delete own review
+     */
+    @DELETE("api/reviews/{reviewId}")
+    suspend fun deleteReview(
+        @Path("reviewId") reviewId: String
+    ): Response<DeleteReviewResponse>
+
+    /**
+     * Get user's own reviews
+     */
+    @GET("api/reviews/my-reviews")
+    suspend fun getMyReviews(): Response<MyReviewsResponse>
+
+    /**
+     * Check if user has reviewed an activity
+     */
+    @GET("api/activities/{activityId}/reviews/check")
+    suspend fun checkUserReview(
+        @Path("activityId") activityId: String
+    ): Response<CheckReviewResponse>
 
     /**
      * Get single activity details
@@ -270,7 +312,7 @@ interface ApiService {
      */
     @POST("api/enrollments/enroll")
     suspend fun enrollInActivity(
-        @Body enrollmentData: Map<String, String>
+        @Body enrollmentData: @JvmSuppressWildcards Map<String, String>
     ): Response<Map<String, Any>>
 
     /**

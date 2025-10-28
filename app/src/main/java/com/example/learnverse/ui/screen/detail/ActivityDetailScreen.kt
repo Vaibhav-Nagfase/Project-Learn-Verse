@@ -1,8 +1,6 @@
-// ActivityDetailScreen.kt (COMPLETE WORKING VERSION)
+// ActivityDetailScreen.kt (COMPLETE WITH COLLAPSING ANIMATION)
 package com.example.learnverse.ui.screen.detail
 
-import android.content.Context
-import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -18,11 +16,16 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
@@ -53,18 +56,39 @@ fun ActivityDetailScreen(
     val currentUserId by authViewModel.currentUserId.collectAsState()
     val context = LocalContext.current
 
+    val pagerState = rememberPagerState()
+    val coroutineScope = rememberCoroutineScope()
+
+    // Collapsing state
+    val maxBannerHeight = 200.dp
+    val minBannerHeight = 80.dp
+    val collapsingRange = with(LocalDensity.current) { (maxBannerHeight - minBannerHeight).toPx() }
+
+    var bannerOffsetHeightPx by remember { mutableStateOf(0f) }
+
+    val nestedScrollConnection = remember {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                val delta = available.y
+                val newOffset = bannerOffsetHeightPx + delta
+                val previousOffset = bannerOffsetHeightPx
+                bannerOffsetHeightPx = newOffset.coerceIn(-collapsingRange, 0f)
+                val consumed = bannerOffsetHeightPx - previousOffset
+                return Offset(0f, consumed)
+            }
+        }
+    }
+
+    val collapseFraction = (-bannerOffsetHeightPx / collapsingRange).coerceIn(0f, 1f)
+
     LaunchedEffect(Unit) {
         activitiesViewModel.fetchMyEnrollments()
     }
 
-    // ✅ Fetch activity on load
     LaunchedEffect(activityId) {
         try {
             isLoading = true
-            // First try to get from local cache
             activity = activitiesViewModel.getActivityById(activityId)
-
-            // If not found, fetch from API
             if (activity == null) {
                 activity = activitiesViewModel.fetchActivityById(activityId)
             }
@@ -77,84 +101,52 @@ fun ActivityDetailScreen(
 
     val isTutor = userRole == "TUTOR" && activity?.tutorId == currentUserId
 
-    val pagerState = rememberPagerState()
-    val coroutineScope = rememberCoroutineScope()
-
     val bannerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
-        uri?.let {
-            activitiesViewModel.uploadBanner(activityId, it, context)
-        }
+        uri?.let { activitiesViewModel.uploadBanner(activityId, it, context) }
     }
 
-    // ✅ Show loading state
     if (isLoading) {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             CircularProgressIndicator()
         }
         return
     }
 
-    // ✅ Show error state
     if (errorMessage != null) {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Icon(
-                    Icons.Default.Error,
-                    contentDescription = null,
-                    modifier = Modifier.size(64.dp),
-                    tint = MaterialTheme.colorScheme.error
-                )
+                Icon(Icons.Default.Error, null, Modifier.size(64.dp), MaterialTheme.colorScheme.error)
                 Spacer(Modifier.height(16.dp))
-                Text(
-                    "Error: $errorMessage",
-                    style = MaterialTheme.typography.bodyLarge
-                )
+                Text("Error: $errorMessage", style = MaterialTheme.typography.bodyLarge)
                 Spacer(Modifier.height(16.dp))
-                Button(onClick = { navController.navigateUp() }) {
-                    Text("Go Back")
-                }
+                Button(onClick = { navController.navigateUp() }) { Text("Go Back") }
             }
         }
         return
     }
 
-    // ✅ Show not found state
     if (activity == null) {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Icon(
-                    Icons.Default.SearchOff,
-                    contentDescription = null,
-                    modifier = Modifier.size(64.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                Icon(Icons.Default.SearchOff, null, Modifier.size(64.dp), MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(Modifier.height(16.dp))
-                Text(
-                    "Activity not found",
-                    style = MaterialTheme.typography.titleLarge
-                )
+                Text("Activity not found", style = MaterialTheme.typography.titleLarge)
                 Spacer(Modifier.height(16.dp))
-                Button(onClick = { navController.navigateUp() }) {
-                    Text("Go Back")
-                }
+                Button(onClick = { navController.navigateUp() }) { Text("Go Back") }
             }
         }
         return
     }
 
-    Scaffold(
-        topBar = {
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .nestedScroll(nestedScrollConnection)
+        ) {
+            // Top App Bar
             TopAppBar(
                 title = { },
                 navigationIcon = {
@@ -163,19 +155,13 @@ fun ActivityDetailScreen(
                     }
                 },
                 actions = {
-                    // Show edit/delete only for tutor owner
                     if (isTutor) {
                         var showMenu by remember { mutableStateOf(false) }
-
                         Box {
                             IconButton(onClick = { showMenu = true }) {
                                 Icon(Icons.Default.MoreVert, "Menu")
                             }
-
-                            DropdownMenu(
-                                expanded = showMenu,
-                                onDismissRequest = { showMenu = false }
-                            ) {
+                            DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
                                 DropdownMenuItem(
                                     text = { Text("Edit Activity") },
                                     onClick = {
@@ -186,124 +172,68 @@ fun ActivityDetailScreen(
                                 )
                                 DropdownMenuItem(
                                     text = { Text("Delete Activity") },
-                                    onClick = {
-                                        showMenu = false
-                                        // Show delete confirmation
-                                    },
-                                    leadingIcon = {
-                                        Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error)
-                                    }
+                                    onClick = { showMenu = false },
+                                    leadingIcon = { Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error) }
                                 )
                             }
                         }
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.Transparent
-                )
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
             )
-        },
-        floatingActionButton = {
-            // Show FABs only for tutors in specific tabs
-            if (isTutor) {
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    // Add Video FAB (visible in Videos tab)
-                    if (pagerState.currentPage == 1) {
-                        FloatingActionButton(
-                            onClick = { navController.navigate("upload_video/$activityId") }
-                        ) {
-                            Icon(Icons.Default.Add, "Add Video")
-                        }
-                    }
 
-                    // Add/Edit Meeting Link FAB (visible in Meeting tab)
-                    if (pagerState.currentPage == 2) {
-                        FloatingActionButton(
-                            onClick = { navController.navigate("add_meeting/$activityId") }
-                        ) {
-                            Icon(Icons.Default.Link, "Add Meeting")
-                        }
-                    }
-                }
-            }
-        }
-    ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-        ) {
-            // Banner & Profile Section
-            BannerAndProfileSection(
+            // Collapsing Banner & Profile
+            CollapsingBannerSection(
                 activity = activity!!,
                 isTutor = isTutor,
+                collapseFraction = collapseFraction,
                 onBannerEdit = { bannerLauncher.launch("image/*") },
-                onProfileClick = {
-                    navController.navigate("tutorProfile/${activity!!.tutorId}")
-                }
+                onProfileClick = { navController.navigate("tutorProfile/${activity!!.tutorId}") }
             )
 
-            // Tab Row
-            TabRow(
-                selectedTabIndex = pagerState.currentPage,
-                modifier = Modifier.fillMaxWidth()
-            ) {
+            // Tabs
+            TabRow(selectedTabIndex = pagerState.currentPage) {
                 listOf("Info", "Videos", "Meeting", "Reviews").forEachIndexed { index, title ->
                     Tab(
                         selected = pagerState.currentPage == index,
-                        onClick = {
-                            coroutineScope.launch {
-                                pagerState.animateScrollToPage(index)
-                            }
-                        },
+                        onClick = { coroutineScope.launch { pagerState.animateScrollToPage(index) } },
                         text = { Text(title) }
                     )
                 }
             }
 
-            // Tab Content with pager
-            HorizontalPager(
-                count = 4,
-                state = pagerState,
-                modifier = Modifier.weight(1f)
-            ) { page ->
+            // Tab Content
+            HorizontalPager(count = 4, state = pagerState, modifier = Modifier.fillMaxSize()) { page ->
                 when (page) {
-                    0 -> ActivityInfoTab(
-                        activity = activity!!,
-                        isEnrolled = isEnrolled,
-                        isTutor = isTutor,
-                        onEnroll = {
-                            activitiesViewModel.enrollInActivity(activityId)
-                        }
-                    )
-                    1 -> VideosTab(
-                        activity = activity!!,
-                        isTutor = isTutor,
-                        isEnrolled = isEnrolled,
-                        navController = navController,
-                        onDeleteVideo = { videoId ->
-                            // Handle video deletion
-                        }
-                    )
+                    0 -> ActivityInfoTab(activity!!, isEnrolled, isTutor) {
+                        activitiesViewModel.enrollInActivity(activityId)
+                    }
+                    1 -> VideosTab(activity!!, isTutor, isEnrolled, navController) { }
                     2 -> MeetingTab(
-                        activity = activity!!,
-                        isTutor = isTutor,
-                        isEnrolled = isEnrolled,
-                        context = context,
-                        onEdit = {
-                            navController.navigate("edit_meeting/$activityId")
-                        },
-                        onDelete = {
-                            // Handle meeting deletion
-                        }
-                    )
-                    3 -> ReviewsTab(
-                        activity = activity!!,
-                        authViewModel = authViewModel,
-                        activitiesViewModel = activitiesViewModel
-                    )
+                        activity!!, isTutor, isEnrolled, context,
+                        { navController.navigate("edit_meeting/$activityId") }, { })
+                    3 -> ReviewsTab(activity!!, authViewModel, activitiesViewModel)
+                }
+            }
+        }
+
+        // FAB
+        if (isTutor) {
+            Column(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                if (pagerState.currentPage == 1) {
+                    FloatingActionButton(onClick = { navController.navigate("upload_video/$activityId") }) {
+                        Icon(Icons.Default.Add, "Add Video")
+                    }
+                }
+                if (pagerState.currentPage == 2) {
+                    FloatingActionButton(onClick = { navController.navigate("add_meeting/$activityId") }) {
+                        Icon(Icons.Default.Link, "Add Meeting")
+                    }
                 }
             }
         }
@@ -311,173 +241,152 @@ fun ActivityDetailScreen(
 }
 
 @Composable
-fun BannerAndProfileSection(
+fun CollapsingBannerSection(
     activity: Activity,
     isTutor: Boolean,
+    collapseFraction: Float,
     onBannerEdit: () -> Unit,
     onProfileClick: () -> Unit
 ) {
+    val maxBannerHeight = 200.dp
+    val minBannerHeight = 80.dp
+    val maxProfileSize = 120.dp
+    val minProfileSize = 60.dp
+
+    val bannerHeight = lerp(maxBannerHeight, minBannerHeight, collapseFraction)
+    val profileSize = lerp(maxProfileSize, minProfileSize, collapseFraction)
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(300.dp)
+            .wrapContentHeight()
     ) {
-        // Banner Image
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(200.dp)
-                .background(MaterialTheme.colorScheme.primaryContainer)
-        ) {
-            if (!activity.bannerImageUrl.isNullOrEmpty()) {
-                AsyncImage(
-                    model = activity.bannerImageUrl,
-                    contentDescription = "Banner",
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
-                )
-            } else {
-                Column(
-                    modifier = Modifier.fillMaxSize(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    Icon(
-                        Icons.Default.Image,
-                        contentDescription = null,
-                        modifier = Modifier.size(64.dp),
-                        tint = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.5f)
-                    )
-                    if (isTutor) {
-                        Spacer(Modifier.height(8.dp))
-                        Text(
-                            "Tap edit to add banner",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
-                        )
-                    }
-                }
-            }
-
-            // Edit Banner Button (only for tutor)
-            if (isTutor) {
-                IconButton(
-                    onClick = onBannerEdit,
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(8.dp)
-                        .size(40.dp)
-                        .background(
-                            MaterialTheme.colorScheme.surface,
-                            CircleShape
-                        )
-                        .border(
-                            1.dp,
-                            MaterialTheme.colorScheme.outline,
-                            CircleShape
-                        )
-                ) {
-                    Icon(
-                        Icons.Default.Edit,
-                        "Edit Banner",
-                        tint = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-            }
-        }
-
-        // Profile Picture & Info
-        Column(
-            modifier = Modifier
-                .align(Alignment.BottomStart)
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp),
-            horizontalAlignment = Alignment.Start
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Top
+        Column(modifier = Modifier.fillMaxWidth()) {
+            // Banner
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(bannerHeight)
+                    .background(MaterialTheme.colorScheme.primaryContainer)
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(120.dp)
-                        .offset(y = (-30).dp)
-                        .clip(CircleShape)
-                        .border(4.dp, MaterialTheme.colorScheme.surface, CircleShape)
-                        .background(MaterialTheme.colorScheme.surfaceVariant)
-                        .clickable(onClick = onProfileClick),
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (!activity.instructorDetails?.profileImage.isNullOrEmpty()) {
-                        AsyncImage(
-                            model = activity.instructorDetails?.profileImage,
-                            contentDescription = "Tutor Profile",
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop
-                        )
-                    } else {
-                        Icon(
-                            Icons.Default.Person,
-                            contentDescription = null,
-                            modifier = Modifier.size(60.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = activity.tutorName ?: "Unknown Tutor",
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Contact Info
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                val emailToShow = activity.contactInfo?.email ?: "No email"
-
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Icon(
-                        Icons.Default.Email,
-                        "Email",
-                        modifier = Modifier.size(18.dp),
-                        tint = MaterialTheme.colorScheme.primary
+                if (!activity.bannerImageUrl.isNullOrEmpty()) {
+                    AsyncImage(
+                        model = activity.bannerImageUrl,
+                        contentDescription = "Banner",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
                     )
-                    Text(
-                        text = emailToShow,
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                }
-
-                activity.contactInfo?.whatsappNumber?.let { phone ->
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                } else {
+                    Column(
+                        modifier = Modifier.fillMaxSize(),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
                     ) {
                         Icon(
-                            Icons.Default.Phone,
-                            "Phone",
-                            modifier = Modifier.size(18.dp),
-                            tint = MaterialTheme.colorScheme.primary
+                            Icons.Default.Image, null,
+                            Modifier.size(64.dp * (1f - collapseFraction * 0.5f)),
+                            MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.5f)
                         )
-                        Text(
-                            text = phone,
-                            style = MaterialTheme.typography.bodyMedium
-                        )
+                        if (isTutor) {
+                            AnimatedVisibility(visible = collapseFraction < 0.5f) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Spacer(Modifier.height(8.dp))
+                                    Text(
+                                        "Tap edit to add banner",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if (isTutor) {
+                    IconButton(
+                        onClick = onBannerEdit,
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(8.dp)
+                            .size(40.dp)
+                            .background(MaterialTheme.colorScheme.surface, CircleShape)
+                            .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
+                    ) {
+                        Icon(Icons.Default.Edit, "Edit", Modifier.size(20.dp))
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            // Spacing for profile overlap
+            Spacer(modifier = Modifier.height(profileSize / 2 + 16.dp))
+        }
+
+        // Profile & Info - Always below profile picture
+        Column(
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .padding(top = bannerHeight - profileSize / 2)
+                .padding(horizontal = 16.dp)
+                .fillMaxWidth()
+        ) {
+            // Profile Picture
+            Box(
+                modifier = Modifier
+                    .size(profileSize)
+                    .clip(CircleShape)
+                    .border(4.dp, MaterialTheme.colorScheme.surface, CircleShape)
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .clickable(onClick = onProfileClick),
+                contentAlignment = Alignment.Center
+            ) {
+                if (!activity.instructorDetails?.profileImage.isNullOrEmpty()) {
+                    AsyncImage(
+                        model = activity.instructorDetails?.profileImage,
+                        contentDescription = "Profile",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Icon(Icons.Default.Person, null, Modifier.size(profileSize / 2))
+                }
+            }
+
+            // Name and contact info - always below profile
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    activity.tutorName ?: "Unknown",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    activity.contactInfo?.email?.let {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(Icons.Default.Email, null, Modifier.size(18.dp), MaterialTheme.colorScheme.primary)
+                            Text(it, style = MaterialTheme.typography.bodyMedium)
+                        }
+                    }
+
+                    activity.contactInfo?.whatsappNumber?.let {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(Icons.Default.Phone, null, Modifier.size(18.dp), MaterialTheme.colorScheme.primary)
+                            Text(it, style = MaterialTheme.typography.bodyMedium)
+                        }
+                    }
+                }
+            }
         }
     }
+}
+
+private fun lerp(start: Dp, stop: Dp, fraction: Float): Dp {
+    return start + (stop - start) * fraction
 }

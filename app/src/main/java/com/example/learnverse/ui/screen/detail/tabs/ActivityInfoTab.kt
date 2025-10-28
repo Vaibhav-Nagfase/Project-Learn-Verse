@@ -11,7 +11,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.learnverse.data.model.Activity
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ActivityInfoTab(
     activity: Activity,
@@ -145,11 +148,13 @@ fun ActivityInfoTab(
             if (tags.isNotEmpty()) {
                 item {
                     InfoCard(title = "Tags") {
-                        Row(
+                        FlowRow(
+                            modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            modifier = Modifier.fillMaxWidth()
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                            maxItemsInEachRow = Int.MAX_VALUE
                         ) {
-                            tags.take(5).forEach { tag ->
+                            tags.forEach { tag ->
                                 SuggestionChip(
                                     onClick = { },
                                     label = { Text(tag) }
@@ -160,6 +165,7 @@ fun ActivityInfoTab(
                 }
             }
         }
+
 
         // Enroll button (only for non-tutors)
         if (!isTutor) {

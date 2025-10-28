@@ -12,6 +12,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.learnverse.data.model.Activity
 import com.example.learnverse.data.model.NaturalSearchRequest
+import com.example.learnverse.data.model.Review
 import com.example.learnverse.data.repository.ActivitiesRepository
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
@@ -43,6 +44,22 @@ class ActivitiesViewModel(
     // Full enrolled activities list
     private val _myEnrolledActivities = MutableStateFlow<List<Activity>>(emptyList())
     val myEnrolledActivities: StateFlow<List<Activity>> = _myEnrolledActivities.asStateFlow()
+
+    private val _activityReviews = MutableStateFlow<List<Review>>(emptyList())
+    val activityReviews: StateFlow<List<Review>> = _activityReviews.asStateFlow()
+
+    private val _totalReviews = MutableStateFlow(0L)
+    val totalReviews: StateFlow<Long> = _totalReviews.asStateFlow()
+
+    private val _isLoadingReviews = MutableStateFlow(false)
+    val isLoadingReviews: StateFlow<Boolean> = _isLoadingReviews.asStateFlow()
+
+    private val _hasUserReviewed = MutableStateFlow(false)
+    val hasUserReviewed: StateFlow<Boolean> = _hasUserReviewed.asStateFlow()
+
+    private val _myReviews = MutableStateFlow<List<Review>>(emptyList())
+    val myReviews: StateFlow<List<Review>> = _myReviews.asStateFlow()
+
 
     // Helper for checking enrollment
     val isEnrolled: (String) -> Boolean = { activityId ->
@@ -224,24 +241,67 @@ class ActivitiesViewModel(
     }
 
     /**
-     * Add review to activity
+     * Fetch reviews for an activity
      */
-    fun addReview(activityId: String, rating: Int, comment: String) {
+    fun fetchActivityReviews(activityId: String, page: Int = 0) {
         viewModelScope.launch {
             try {
-                val reviewData = mapOf(
-                    "rating" to rating,
-                    "comment" to comment
-                )
+                _isLoadingReviews.value = true
 
-                val response = repository.addReview(activityId, reviewData)
+                val response = repository.getActivityReviews(activityId, page, size = 10)
 
-                if (response.isSuccessful) {
-                    fetchActivityDetails(activityId)
+                _activityReviews.value = response.reviews
+                _totalReviews.value = response.totalReviews
+
+            } catch (e: Exception) {
+                e.printStackTrace()
+                errorMessage = "Failed to load reviews: ${e.message}"
+            } finally {
+                _isLoadingReviews.value = false
+            }
+        }
+    }
+
+    /**
+     * Check if user has reviewed activity
+     */
+    fun checkIfUserReviewed(activityId: String) {
+        viewModelScope.launch {
+            try {
+                val hasReviewed = repository.checkUserReview(activityId)
+                _hasUserReviewed.value = hasReviewed
+            } catch (e: Exception) {
+                e.printStackTrace()
+                _hasUserReviewed.value = false
+            }
+        }
+    }
+
+    /**
+     * Add review to activity
+     */
+    fun addReview(activityId: String, rating: Int, feedback: String?) {
+        viewModelScope.launch {
+            try {
+                val response = repository.addReview(activityId, rating, feedback)
+
+                if (response.isSuccessful && response.body() != null) {
+                    val result = response.body()!!
+
+                    // Add new review to local list
+                    _activityReviews.value = listOf(result.review) + _activityReviews.value
+                    _totalReviews.value = _totalReviews.value + 1
+                    _hasUserReviewed.value = true
 
                     android.widget.Toast.makeText(
                         context,
-                        "Review added successfully!",
+                        result.message,
+                        android.widget.Toast.LENGTH_SHORT
+                    ).show()
+                } else {
+                    android.widget.Toast.makeText(
+                        context,
+                        "Failed to add review: ${response.message()}",
                         android.widget.Toast.LENGTH_SHORT
                     ).show()
                 }
@@ -249,11 +309,111 @@ class ActivitiesViewModel(
                 e.printStackTrace()
                 android.widget.Toast.makeText(
                     context,
-                    "Failed to add review: ${e.message}",
+                    "Error: ${e.message}",
                     android.widget.Toast.LENGTH_SHORT
                 ).show()
             }
         }
+    }
+
+    /**
+     * Update existing review
+     */
+    fun updateReview(reviewId: String, rating: Int?, feedback: String?) {
+        viewModelScope.launch {
+            try {
+                val response = repository.updateReview(reviewId, rating, feedback)
+
+                if (response.isSuccessful && response.body() != null) {
+                    val result = response.body()!!
+
+                    // Update review in local list
+                    _activityReviews.value = _activityReviews.value.map { review ->
+                        if (review.id == reviewId) result.review else review
+                    }
+
+                    android.widget.Toast.makeText(
+                        context,
+                        result.message,
+                        android.widget.Toast.LENGTH_SHORT
+                    ).show()
+                } else {
+                    android.widget.Toast.makeText(
+                        context,
+                        "Failed to update review",
+                        android.widget.Toast.LENGTH_SHORT
+                    ).show()
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                android.widget.Toast.makeText(
+                    context,
+                    "Error: ${e.message}",
+                    android.widget.Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
+    }
+
+    /**
+     * Delete review
+     */
+    fun deleteReview(reviewId: String) {
+        viewModelScope.launch {
+            try {
+                val response = repository.deleteReview(reviewId)
+
+                if (response.isSuccessful && response.body() != null) {
+                    // Remove from local list
+                    _activityReviews.value = _activityReviews.value.filter { it.id != reviewId }
+                    _totalReviews.value = _totalReviews.value - 1
+                    _hasUserReviewed.value = false
+
+                    android.widget.Toast.makeText(
+                        context,
+                        response.body()!!.message,
+                        android.widget.Toast.LENGTH_SHORT
+                    ).show()
+                } else {
+                    android.widget.Toast.makeText(
+                        context,
+                        "Failed to delete review",
+                        android.widget.Toast.LENGTH_SHORT
+                    ).show()
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                android.widget.Toast.makeText(
+                    context,
+                    "Error: ${e.message}",
+                    android.widget.Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
+    }
+
+    /**
+     * Fetch user's own reviews
+     */
+    fun fetchMyReviews() {
+        viewModelScope.launch {
+            try {
+                val response = repository.getMyReviews()
+                _myReviews.value = response.reviews
+            } catch (e: Exception) {
+                e.printStackTrace()
+                errorMessage = "Failed to load your reviews: ${e.message}"
+            }
+        }
+    }
+
+    /**
+     * Clear reviews when leaving activity detail
+     */
+    fun clearReviews() {
+        _activityReviews.value = emptyList()
+        _totalReviews.value = 0
+        _hasUserReviewed.value = false
     }
 
     /**
