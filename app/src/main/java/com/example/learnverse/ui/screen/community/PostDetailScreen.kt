@@ -136,7 +136,9 @@ fun PostDetailScreen(
                                 onFollowClick = { communityViewModel.followTutor(selectedPost!!.authorId) },
                                 onUnfollowClick = { communityViewModel.unfollowTutor(selectedPost!!.authorId) },
                                 onAuthorClick = { navController.navigate("tutorProfile/${selectedPost!!.authorId}") },
-                                onPostClick = { /* Already here */ }
+                                onPostClick = { /* Already here */ },
+                                onEditClick = { navController.navigate("createPost?postId=${selectedPost!!.id}") },
+                                onDeleteClick = { /* TODO: Show delete dialog, then call deletePost */ }
                             )
                         }
 

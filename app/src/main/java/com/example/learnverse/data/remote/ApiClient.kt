@@ -28,17 +28,20 @@ class ApiClient(context: Context) {
 
     init {
         val logging = HttpLoggingInterceptor().apply {
-            level = HttpLoggingInterceptor.Level.BODY
+            level = HttpLoggingInterceptor.Level.HEADERS
         }
         val authInterceptor = AuthInterceptor(context)
+
+        val authenticator = TokenAuthenticator(context, this)
 
         // --- CHANGE 2: Increased connectTimeout to 60 seconds ---
         okHttpClient = OkHttpClient.Builder() // Assign to the public property
             .addInterceptor(logging)
             .addInterceptor(authInterceptor)
+            .authenticator(authenticator)
             .connectTimeout(60, TimeUnit.SECONDS) // Increased from 30
-            .readTimeout(60, TimeUnit.SECONDS)
-            .writeTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(300, TimeUnit.SECONDS)
+            .writeTimeout(300, TimeUnit.SECONDS)
             .build()
 
         retrofit = Retrofit.Builder()

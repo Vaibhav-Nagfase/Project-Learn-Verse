@@ -20,8 +20,12 @@ class AuthRepository(private val api: ApiService, private val context: Context) 
     suspend fun login(request: LoginRequest): AuthResponse {
         val response = api.login(request)
         if (response.isSuccessful && response.body() != null) {
-            UserPreferences.saveToken(context, response.body()!!.accessToken)
-            return response.body()!!
+            val authResponse = response.body()!!
+            // --- MODIFY THIS ---
+            // Save both tokens
+            UserPreferences.saveTokens(context, authResponse.accessToken, authResponse.refreshToken)
+            // --- END MODIFY ---
+            return authResponse
         }
         throw Exception("Login failed: ${response.message()}")
     }

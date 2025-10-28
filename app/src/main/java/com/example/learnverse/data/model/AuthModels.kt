@@ -27,10 +27,15 @@ data class InterestsUpdateRequest(
     val interests: List<String>
 )
 
+data class RefreshTokenRequest(
+    val refreshToken: String
+)
+
 data class AuthResponse(
     val accessToken: String,
+    val refreshToken: String,
     val tokenType: String,
-    val expiresInSeconds: Int,
+    val expiresIn: Int,
     val role: String,
     val userId: String
 )

@@ -1,5 +1,6 @@
 package com.example.learnverse.viewmodel
 
+import android.content.Context
 import android.net.Uri
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.getValue
@@ -63,6 +64,18 @@ class CommunityViewModel(
     private val _selectedTutorFollowStats = MutableStateFlow<FollowStats?>(null)
     val selectedTutorFollowStats: StateFlow<FollowStats?> = _selectedTutorFollowStats.asStateFlow()
 
+    // --- ⬇️ ADD State for 'My Posts' Screen ⬇️ ---
+    private val _myPosts = MutableStateFlow<List<CommunityPost>>(emptyList())
+    val myPosts: StateFlow<List<CommunityPost>> = _myPosts.asStateFlow()
+
+    private val _myPostsUiState = MutableStateFlow<CommunityUiState>(CommunityUiState.Idle)
+    val myPostsUiState: StateFlow<CommunityUiState> = _myPostsUiState.asStateFlow()
+
+    private var myPostsCurrentPage = 0
+    private var myPostsIsLastPage = false
+    var isLoadingMoreMyPosts by mutableStateOf(false)
+    // --- ⬆️ END ADD State ⬆️ ---
+
     // --- REMOVED init block ---
 
     // --- Feed Functions ---
@@ -117,6 +130,7 @@ class CommunityViewModel(
 
             // Find the current post first to check its state
             val currentPost = _feedPosts.value.find { it.id == postId } ?: return@launch
+            val currentPostMy = _myPosts.value.find { it.id == postId } // Find in myPosts too
             val currentlyLiked = currentPost.likedBy.contains(currentUserId)
 
             // Perform optimistic update (like OR unlike)
@@ -125,6 +139,12 @@ class CommunityViewModel(
                     if (post.id == postId) {
                         post.copy(likedBy = if (currentlyLiked) post.likedBy - currentUserId else post.likedBy + currentUserId)
                     } else post
+                }
+            }
+            _myPosts.update { posts -> // Update myPosts optimistically
+                posts.map { post ->
+                    if (post.id == postId) post.copy(likedBy = if (currentlyLiked) post.likedBy - currentUserId else post.likedBy + currentUserId)
+                    else post
                 }
             }
 
@@ -137,11 +157,18 @@ class CommunityViewModel(
                         if (post.id == postId) updatedPostFromServer else post
                     }
                 }
+
+                _myPosts.update { posts -> // Update myPosts with confirmed state
+                    posts.map { post -> if (post.id == postId) updatedPostFromServer else post }
+                }
             } catch (e: Exception) {
                 println("Failed to like/unlike post $postId: ${e.message}")
                 // Revert Optimistic Update on Error
                 _feedPosts.update { posts ->
                     posts.map { post -> if (post.id == postId) currentPost else post }
+                }
+                _myPosts.update { posts ->
+                    posts.map { post -> if (post.id == postId) currentPostMy ?: post else post } // Revert myPosts
                 }
                 _feedUiState.value = CommunityUiState.Error("Like/Unlike failed: ${e.message}") // Show error
             }
@@ -188,19 +215,104 @@ class CommunityViewModel(
     }
 
     // --- Post Creation/Management (Tutor Only) ---
-    fun createPost(content: String?, file: File?, mediaType: String?) {
+    fun createPost(context: Context, content: String?, fileUri: Uri?, mediaType: String?) { // Added context, changed file to fileUri
         viewModelScope.launch {
             _postCreationUiState.value = CommunityUiState.Loading
+            val token = authRepository.getToken().firstOrNull()
+            val currentUserId = token?.let { decodeUserId(it) }
+
             try {
-                val finalMediaType = if (file != null) mediaType ?: "application/octet-stream" else "none"
-                // No token needed here - Interceptor handles it
-                communityRepository.createPost(content, file, finalMediaType)
+                val finalMediaType = if (fileUri != null) {
+                    mediaType ?: "application/octet-stream" // Default if new file type is unknown
+                } else {
+                    "none" // No file, no media
+                }
+
+                // Pass the context and Uri to the repository
+                communityRepository.createPost(context, content, fileUri, finalMediaType) // Pass Uri, not File
                 _postCreationUiState.value = CommunityUiState.Success("Post created!")
                 resetPostCreationState()
-                fetchInitialFeed() // Refresh feed
+                fetchInitialFeed()
+
+                if (currentUserId != null) {
+                    fetchMyPosts(currentUserId, forceRefresh = true)
+                }
+
             } catch (e: Exception) {
                 _postCreationUiState.value = CommunityUiState.Error("Failed to create post: ${e.message}")
             }
+        }
+    }
+
+    fun updatePost(postId: String, context: Context, content: String?, fileUri: Uri?, mediaType: String?) { // Added context, changed file to fileUri
+        viewModelScope.launch {
+            _postCreationUiState.value = CommunityUiState.Loading
+            val token = authRepository.getToken().firstOrNull()
+            val currentUserId = token?.let { decodeUserId(it) }
+
+            try {
+                val finalMediaType = if (fileUri != null) {
+                    mediaType ?: "application/octet-stream"
+                } else if (postMediaUri != null) { // postMediaUri is the state in ViewModel
+                    postMediaType ?: "application/octet-stream"
+                } else {
+                    "none"
+                }
+
+                // Pass context and Uri to repository
+                communityRepository.updatePost(postId, context, content, fileUri, finalMediaType)
+                _postCreationUiState.value = CommunityUiState.Success("Post updated!")
+                resetPostCreationState()
+                fetchInitialFeed()
+
+                if (currentUserId != null) {
+                    fetchMyPosts(currentUserId, forceRefresh = true)
+                }
+
+            } catch (e: Exception) {
+                _postCreationUiState.value = CommunityUiState.Error("Failed to update post: ${e.message}")
+            }
+        }
+    }
+
+    fun loadPostForEditing(postId: String) {
+        viewModelScope.launch {
+            _postCreationUiState.value = CommunityUiState.Loading // Indicate loading
+
+            try {
+                // 1. Check 'My Posts' list first (most likely place)
+                var post = _myPosts.value.find { it.id == postId }
+
+                // 2. If not in 'My Posts', check the main feed
+                if (post == null) {
+                    post = _feedPosts.value.find { it.id == postId }
+                }
+
+                // 3. (Optional future step): If still not found,
+                // you would fetch it from the repository:
+                // if (post == null) {
+                //    post = communityRepository.getPostById(postId) // Needs new API/Repo function
+                // }
+
+                if (post != null) {
+                    // Populate the ViewModel state used by CreatePostScreen
+                    postContent = post.content ?: ""
+
+                    // As noted in the TODO, we set the media URI
+                    // from the URL for *preview* purposes.
+                    // The CreatePostScreen logic will handle replacing
+                    // this if the user selects a new file.
+                    postMediaUri = post.mediaUrl?.let { Uri.parse(it) }
+                    postMediaType = post.mediaType
+
+                    _postCreationUiState.value = CommunityUiState.Idle // Ready to edit
+                } else {
+                    _postCreationUiState.value = CommunityUiState.Error("Post not found.")
+                }
+            } catch (e: Exception) {
+                _postCreationUiState.value = CommunityUiState.Error("Failed to load post for editing: ${e.message}")
+            }
+            // --- END UPDATED LOGIC ---
         }
     }
 
@@ -210,6 +322,7 @@ class CommunityViewModel(
                 // No token needed here - Interceptor handles it
                 communityRepository.deletePost(postId)
                 _feedPosts.update { posts -> posts.filterNot { it.id == postId } }
+                _myPosts.update { posts -> posts.filterNot { it.id == postId } }
                 // Show success message if needed
             } catch (e: Exception) {
                 println("Failed to delete post $postId: ${e.message}")
@@ -274,6 +387,42 @@ class CommunityViewModel(
             }
         }
     }
+
+    // --- ⬇️ ADD Functions for 'My Posts' Screen ⬇️ ---
+    fun fetchMyPosts(userId: String, forceRefresh: Boolean = false) {
+        if (_myPostsUiState.value == CommunityUiState.Loading && !forceRefresh) return
+        viewModelScope.launch {
+            _myPostsUiState.value = CommunityUiState.Loading
+            try {
+                myPostsCurrentPage = 0
+                val response = communityRepository.getUserPosts(userId, page = myPostsCurrentPage, size = 10)
+                _myPosts.value = response.content
+                myPostsIsLastPage = response.last
+                _myPostsUiState.value = CommunityUiState.Success()
+            } catch (e: Exception) {
+                _myPostsUiState.value = CommunityUiState.Error("Failed to load your posts: ${e.message}")
+            }
+        }
+    }
+
+    fun loadMoreMyPosts(userId: String) {
+        if (isLoadingMoreMyPosts || myPostsIsLastPage || _myPostsUiState.value is CommunityUiState.Loading) return
+        viewModelScope.launch {
+            isLoadingMoreMyPosts = true
+            try {
+                myPostsCurrentPage++
+                val response = communityRepository.getUserPosts(userId, page = myPostsCurrentPage, size = 10)
+                _myPosts.value = _myPosts.value + response.content // Append
+                myPostsIsLastPage = response.last
+            } catch (e: Exception) {
+                myPostsCurrentPage--
+                println("Failed to load more of your posts: ${e.message}")
+            } finally {
+                isLoadingMoreMyPosts = false
+            }
+        }
+    }
+    // --- ⬆️ END ADD Functions ⬆️ ---
 
     // --- Helper Functions ---
     fun resetPostCreationState() {

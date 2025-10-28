@@ -109,14 +109,20 @@ class AuthViewModel(
                 _currentUserEmail.value = userEmail
                 _currentUserRole.value = userRole
 
-                // --- NEW: Check for user profile after verifying token ---
-                val userProfile = profileRepository.getProfile()
-                _hasProfile.value = userProfile != null
-
                 if (userRole == "ADMIN") {
                     _authState.value = AuthState.Authenticated
                     return@launch
                 }
+
+                if (userRole == "TUTOR") {
+                    _authState.value = AuthState.Authenticated
+                    return@launch
+                }
+
+                // --- NEW: Check for user profile after verifying token ---
+                val userProfile = profileRepository.getProfile()
+                _hasProfile.value = userProfile != null
+
 
                 if (userEmail != null) {
                     try {

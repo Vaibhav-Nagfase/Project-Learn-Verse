@@ -57,6 +57,12 @@ dependencies {
     implementation("com.auth0.android:jwtdecode:2.0.2")
     implementation("io.coil-kt:coil-compose:2.6.0")
 
+    // --- Add Media3 Dependencies ---
+    val media3Version = "1.3.1"
+    implementation("androidx.media3:media3-exoplayer:$media3Version")
+    implementation("androidx.media3:media3-ui:$media3Version")
+    implementation("androidx.media3:media3-common:$media3Version")
+
     // --- DEPENDENCY CLEANUP ---
 
     // Keep the navigation dependency (its version is managed separately)

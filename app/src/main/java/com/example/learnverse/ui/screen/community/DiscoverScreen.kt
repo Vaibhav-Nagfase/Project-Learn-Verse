@@ -15,6 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import com.example.learnverse.data.model.CommunityPost
 import com.example.learnverse.ui.screen.home.BottomNavigationBar // Reuse your existing BottomNavBar
 import com.example.learnverse.viewmodel.AuthViewModel
 import com.example.learnverse.viewmodel.CommunityUiState
@@ -37,6 +38,9 @@ fun DiscoverScreen(
 
     val listState = rememberLazyListState()
     val snackbarHostState = remember { SnackbarHostState() }
+
+    // State for delete confirmation
+    var postToDelete by remember { mutableStateOf<CommunityPost?>(null) }
 
     // Fetch data when the screen is first composed (i.e., when user is authenticated)
     LaunchedEffect(Unit) {
@@ -76,7 +80,7 @@ fun DiscoverScreen(
         floatingActionButton = {
             // Show FAB only for Tutors
             if (userRole == "TUTOR") {
-                FloatingActionButton(onClick = { /* TODO: Navigate to CreatePostScreen */ }) {
+                FloatingActionButton(onClick = { navController.navigate("createPost") }) {
                     Icon(Icons.Default.Add, contentDescription = "Create Post")
                 }
             }
@@ -117,7 +121,9 @@ fun DiscoverScreen(
                             onFollowClick = { communityViewModel.followTutor(post.authorId) },
                             onUnfollowClick = { communityViewModel.unfollowTutor(post.authorId) },
                             onAuthorClick = { navController.navigate("tutorProfile/${post.authorId}") },
-                            onPostClick = { /* TODO */ }
+                            onPostClick = { /* TODO */ },
+                            onEditClick = { navController.navigate("createPost?postId=${post.id}") },
+                            onDeleteClick = { postToDelete = post }
                         )
                     }
 
@@ -135,12 +141,23 @@ fun DiscoverScreen(
                         }
                     }
                 }
+
             }
 
-            // Optional: Add a Pull-to-Refresh indicator if desired
-            // You can use accompanist's SwipeRefresh:
-            // val isRefreshing = feedUiState == CommunityUiState.Loading
-            // SwipeRefresh(state = rememberSwipeRefreshState(isRefreshing), onRefresh = { communityViewModel.fetchInitialFeed() }) { /* LazyColumn here */ }
+            // --- Delete Confirmation Dialog ---
+            if (postToDelete != null) {
+                DeleteConfirmationDialog( // Reuse dialog from TutorDashboardScreen?
+                    postName = postToDelete!!.content?.take(30) ?: "this post", // Show snippet
+                    onConfirm = {
+                        communityViewModel.deletePost(postToDelete!!.id) // Use specific delete function?
+                        postToDelete = null
+                    },
+                    onDismiss = {
+                        postToDelete = null
+                    }
+                )
+            }
+
         }
     }
 }

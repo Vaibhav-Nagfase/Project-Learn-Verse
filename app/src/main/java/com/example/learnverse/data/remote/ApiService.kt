@@ -34,6 +34,10 @@ interface ApiService {
     @POST("auth/login")
     suspend fun login(@Body request: LoginRequest): Response<AuthResponse>
 
+    // --- ADD SYNCHRONOUS REFRESH ENDPOINT ---
+    @POST("auth/refresh-token")
+    fun refreshToken(@Body request: RefreshTokenRequest): Call<AuthResponse> // Note: Not suspend, returns Call
+
     @GET("api/activities/my-feed")
     suspend fun getMyFeed(): Response<List<Activity>>
 

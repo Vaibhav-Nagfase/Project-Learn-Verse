@@ -60,6 +60,9 @@ fun TutorProfileScreen(
 
     val listState = rememberLazyListState()
 
+    // State for delete confirmation
+    var postToDelete by remember { mutableStateOf<CommunityPost?>(null) }
+
     // Fetch profile data when the screen is shown or tutorId changes
     LaunchedEffect(tutorId) {
         tutorProfileViewModel.loadTutorProfile(tutorId)
@@ -148,10 +151,11 @@ fun TutorProfileScreen(
                                     onFollowClick = { /* Handled by header button */ },
                                     onUnfollowClick = { /* Handled by header button */ },
                                     onAuthorClick = { /* Already on author's profile */ },
-                                    onPostClick = { /* TODO */ }
+                                    onPostClick = { /* TODO */ },
+                                    onEditClick = { navController.navigate("createPost?postId=${post.id}") },
+                                    onDeleteClick = { postToDelete = post }
                                 )
                             }
-                            // TODO: Add loading indicator for pagination if needed
                         } else {
                             item {
                                 Text("This tutor hasn't posted anything yet.")
@@ -160,6 +164,7 @@ fun TutorProfileScreen(
                     }
                 }
             }
+
         }
     }
 }

@@ -35,6 +35,7 @@ import com.example.learnverse.ui.screen.admin.AdminDashboardScreen
 import com.example.learnverse.ui.screen.auth.InterestSelectionDialog
 import com.example.learnverse.ui.screen.auth.LoginScreen
 import com.example.learnverse.ui.screen.auth.SignUpScreen
+import com.example.learnverse.ui.screen.community.CreatePostScreen
 import com.example.learnverse.ui.screen.detail.ActivityDetailScreen
 import com.example.learnverse.ui.screen.enrollment.MyCoursesScreen
 import com.example.learnverse.ui.screen.filter.FilterScreen
@@ -147,7 +148,7 @@ fun LearnVerseApp() {
                     AdminNavGraph(authViewModel = authViewModel, adminViewModel = adminViewModel)
                 }
                 "TUTOR" -> {
-                    TutorNavGraph(authViewModel = authViewModel, tutorViewModel = tutorViewModel)
+                    TutorNavGraph(authViewModel = authViewModel, tutorViewModel = tutorViewModel, communityViewModel = communityViewModel)
                 }
                 else -> {
                     val startDestination = if (authViewModel.navigateToFeedAfterOnboarding || authViewModel.interestSelectionCancelled) "home" else "home"
@@ -277,12 +278,22 @@ fun MainNavGraph(
 }
 
 @Composable
-fun TutorNavGraph(authViewModel: AuthViewModel, tutorViewModel: TutorViewModel) {
-    val navController = rememberNavController()
-    NavHost(navController = navController, startDestination = "tutor_dashboard") {
-        composable("tutor_dashboard") {
-            TutorDashboardScreen(navController, authViewModel, tutorViewModel)
+fun TutorNavGraph(
+    authViewModel: AuthViewModel,
+    tutorViewModel: TutorViewModel,
+    communityViewModel: CommunityViewModel // Add CommunityViewModel parameter
+) {
+    val navController = rememberNavController() // This is the MAIN NavController for this graph
+    NavHost(navController = navController, startDestination = "tutor_dashboard_main") { // Changed start destination name
+        composable("tutor_dashboard_main") { // Renamed route
+            TutorDashboardScreen(
+                mainNavController = navController, // Pass the main controller
+                authViewModel = authViewModel,
+                tutorViewModel = tutorViewModel,
+                communityViewModel = communityViewModel // Pass it down
+            )
         }
+        // Keep the route for creating/editing activities accessible globally
         composable(
             route = "create_activity?activityId={activityId}",
             arguments = listOf(navArgument("activityId") { nullable = true })
@@ -293,6 +304,46 @@ fun TutorNavGraph(authViewModel: AuthViewModel, tutorViewModel: TutorViewModel) 
                 tutorViewModel = tutorViewModel,
                 activityId = backStackEntry.arguments?.getString("activityId")
             )
+        }
+        // --- ADD Route for Create Post ---
+        composable(
+            route = "createPost?postId={postId}",
+            arguments = listOf(navArgument("postId") { nullable = true; type = NavType.StringType })
+        ) { backStackEntry ->
+            CreatePostScreen(
+                navController = navController,
+                communityViewModel = communityViewModel,
+                postIdToEdit = backStackEntry.arguments?.getString("postId")
+            )
+        }
+        // --- ADD Route for Post Detail ---
+        composable(
+            route = "postDetail/{postId}",
+            arguments = listOf(navArgument("postId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val postId = backStackEntry.arguments?.getString("postId")
+            if (postId != null) {
+                PostDetailScreen(
+                    postId = postId,
+                    navController = navController,
+                    communityViewModel = communityViewModel,
+                    authViewModel = authViewModel
+                )
+            } else { Text("Error: Post ID missing") }
+        }
+        // --- ADD Route for Tutor Profile ---
+        composable(
+            route = "tutorProfile/{tutorId}",
+            arguments = listOf(navArgument("tutorId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val tutorIdArg = backStackEntry.arguments?.getString("tutorId")
+            if (tutorIdArg != null) {
+                TutorProfileScreen(
+                    tutorId = tutorIdArg,
+                    navController = navController,
+                    authViewModel = authViewModel
+                )
+            } else { Text("Error: Tutor ID missing") }
         }
     }
 }
