@@ -15,10 +15,12 @@ import com.example.learnverse.data.model.NaturalSearchRequest
 import com.example.learnverse.data.repository.ActivitiesRepository
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.asRequestBody
@@ -288,27 +290,69 @@ class ActivitiesViewModel(
         return tempFile
     }
 
+
     /**
-     * Get activity by ID
+     * Get activity by ID from local cache
      */
     fun getActivityById(activityId: String): Activity? {
         return _activities.value.find { it.id == activityId }
     }
 
     /**
-     * Enroll in activity
+     * ✅ Add activity to cache (for tutor activities)
      */
+    fun addActivityToCache(activity: Activity) {
+        // Only add if not already in cache
+        if (!_activities.value.any { it.id == activity.id }) {
+            _activities.value = _activities.value + activity
+        }
+    }
+
+    /**
+     * ✅ Fetch activity by ID from API (if not in cache)
+     */
+    suspend fun fetchActivityById(activityId: String): Activity? {
+        return withContext(Dispatchers.IO) {
+            try {
+                val response = repository.getActivityById(activityId)
+                if (response.isSuccessful && response.body() != null) {
+                    val activity = response.body()!!
+
+                    // Add to local cache
+                    _activities.value = _activities.value + activity
+
+                    activity
+                } else {
+                    null
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                null
+            }
+        }
+    }
+
     fun enrollInActivity(activityId: String) {
         viewModelScope.launch {
             try {
                 val response = repository.enrollInActivity(activityId)
 
                 if (response.isSuccessful) {
+                    // ✅ Add to enrolled set
                     _enrolledActivities.value = _enrolledActivities.value + activityId
+
+                    // ✅ Reload enrollments to update UI
+                    fetchMyEnrollments()
 
                     android.widget.Toast.makeText(
                         context,
                         "Enrolled successfully!",
+                        android.widget.Toast.LENGTH_SHORT
+                    ).show()
+                } else {
+                    android.widget.Toast.makeText(
+                        context,
+                        "Enrollment failed: ${response.message()}",
                         android.widget.Toast.LENGTH_SHORT
                     ).show()
                 }

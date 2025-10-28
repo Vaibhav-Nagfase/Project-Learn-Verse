@@ -197,26 +197,52 @@ data class CreateActivityRequest(
     val title: String,
     val description: String,
     val subject: String,
-    val classType: String,
+    val classType: String?,
     val activityType: String,
     val mode: String,
     val difficulty: String,
     val pricing: Pricing,
+    val suitableAgeGroup: SuitableAgeGroup?,
+    val prerequisites: List<String>?,
     val duration: Duration,
+    val schedule: Schedule?,
+    val demoAvailable: Boolean?,
+    val demoDetails: DemoDetails?,
     val tags: List<String>,
     val isActive: Boolean,
-    val isPublic: Boolean
+    val isPublic: Boolean,
+    val featured: Boolean?
 ) {
     data class Pricing(
-        val price: Double,
+        val price: Int,
         val currency: String,
-        val priceType: String
+        val priceType: String,
+        val discountPrice: Int?,
+        val installmentAvailable: Boolean?
+    )
+
+    data class SuitableAgeGroup(
+        val minAge: Int,
+        val maxAge: Int,
+        val ageDescription: String?
     )
 
     data class Duration(
-        val totalDuration: Int,
         val totalSessions: Int,
-        val durationDescription: String
+        val estimatedDuration: Int,
+        val durationDescription: String,
+        val lifetimeAccess: Boolean?
+    )
+
+    data class Schedule(
+        val selfPaced: Boolean?,
+        val accessDuration: Int?,
+        val flexibleScheduling: Boolean?
+    )
+
+    data class DemoDetails(
+        val freeTrial: Boolean?,
+        val trialDuration: Int?
     )
 }
 

@@ -1,13 +1,11 @@
+// TutorDashboardScreen.kt
 package com.example.learnverse.ui.screen.tutor
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Logout
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -17,6 +15,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.example.learnverse.data.model.Activity
+import com.example.learnverse.viewmodel.ActivitiesViewModel
 import com.example.learnverse.viewmodel.AuthViewModel
 import com.example.learnverse.viewmodel.TutorViewModel
 import com.example.learnverse.viewmodel.UiState
@@ -26,24 +25,22 @@ import com.example.learnverse.viewmodel.UiState
 fun TutorDashboardScreen(
     navController: NavController,
     authViewModel: AuthViewModel,
-    tutorViewModel: TutorViewModel
+    tutorViewModel: TutorViewModel,
+    activitiesViewModel: ActivitiesViewModel
 ) {
-    // Collect state from the ViewModel in a lifecycle-aware manner
     val myActivities by tutorViewModel.myActivities.collectAsStateWithLifecycle()
     val uiState by tutorViewModel.uiState.collectAsStateWithLifecycle()
 
-    // Trigger the data fetch when the screen first appears
     LaunchedEffect(Unit) {
         tutorViewModel.fetchMyActivities()
     }
 
-    // State to control the delete confirmation dialog
     var activityToDelete by remember { mutableStateOf<Activity?>(null) }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Tutor Dashboard") },
+                title = { Text("My Activities") },
                 actions = {
                     IconButton(onClick = { authViewModel.logout() }) {
                         Icon(Icons.Default.Logout, contentDescription = "Logout")
@@ -67,10 +64,30 @@ fun TutorDashboardScreen(
                     CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
                 }
                 myActivities.isEmpty() -> {
-                    Text(
-                        "You haven't created any activities yet. Tap the '+' to add one!",
-                        modifier = Modifier.align(Alignment.Center).padding(horizontal = 16.dp)
-                    )
+                    Column(
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .padding(32.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Icon(
+                            Icons.Default.LibraryBooks,
+                            contentDescription = null,
+                            modifier = Modifier.size(64.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(Modifier.height(16.dp))
+                        Text(
+                            "No activities yet",
+                            style = MaterialTheme.typography.titleLarge
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            "Tap the '+' button to create your first activity",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
                 else -> {
                     LazyColumn(
@@ -80,12 +97,14 @@ fun TutorDashboardScreen(
                         items(myActivities) { activity ->
                             ActivityCard(
                                 activity = activity,
-                                onUpdate = {
-                                    // Navigate to the edit screen with the activityId
+                                onClick = {
+                                    activitiesViewModel.addActivityToCache(activity)
+                                    navController.navigate("activityDetail/${activity.id}")
+                                },
+                                onEdit = {
                                     navController.navigate("create_activity?activityId=${activity.id}")
                                 },
                                 onDelete = {
-                                    // Set the activity to be deleted to show the dialog
                                     activityToDelete = activity
                                 }
                             )
@@ -95,64 +114,104 @@ fun TutorDashboardScreen(
             }
         }
 
-        // Show the confirmation dialog when an activity is selected for deletion
         if (activityToDelete != null) {
             DeleteConfirmationDialog(
                 activityName = activityToDelete!!.title,
                 onConfirm = {
                     tutorViewModel.deleteActivity(activityToDelete!!.id)
-                    activityToDelete = null // Dismiss the dialog
+                    activityToDelete = null
                 },
                 onDismiss = {
-                    activityToDelete = null // Dismiss the dialog
+                    activityToDelete = null
                 }
             )
         }
     }
 }
 
-/**
- * A Composable card that displays a tutor's activity and provides update/delete actions.
- */
 @Composable
-fun ActivityCard(activity: Activity, onUpdate: () -> Unit, onDelete: () -> Unit) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+fun ActivityCard(
+    activity: Activity,
+    onClick: () -> Unit,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit
+) {
+    var showMenu by remember { mutableStateOf(false) }
+
+    Card(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth()
+    ) {
         Row(
-            modifier = Modifier.padding(start = 16.dp, top = 16.dp, bottom = 8.dp, end = 8.dp),
+            modifier = Modifier.padding(16.dp),
             verticalAlignment = Alignment.Top
         ) {
-            // Column for text content
             Column(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                Text(activity.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                Text("Subject: ${activity.subject}", style = MaterialTheme.typography.bodyMedium)
-                activity.pricing?.let {
-                    Text("Price: ${it.price} ${it.currency}", style = MaterialTheme.typography.bodyMedium)
-                }
                 Text(
-                    text = if (activity.isPublic == true) "Status: Public" else "Status: Draft",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = if (activity.isPublic == true) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    activity.title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
                 )
-            }
-            // Column for action buttons
-            Column {
-                IconButton(onClick = onUpdate, modifier = Modifier.size(36.dp)) {
-                    Icon(Icons.Default.Edit, contentDescription = "Edit Activity")
+                Text(
+                    "Subject: ${activity.subject}",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                activity.pricing?.let {
+                    Text(
+                        "₹${it.price}",
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
-                IconButton(onClick = onDelete, modifier = Modifier.size(36.dp)) {
-                    Icon(Icons.Default.Delete, contentDescription = "Delete Activity", tint = MaterialTheme.colorScheme.error)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    AssistChip(
+                        onClick = { },
+                        label = { Text(activity.mode) }
+                    )
+                    AssistChip(
+                        onClick = { },
+                        label = { Text(activity.difficulty ?: "N/A") }
+                    )
+                }
+            }
+
+            Box {
+                IconButton(onClick = { showMenu = true }) {
+                    Icon(Icons.Default.MoreVert, "Menu")
+                }
+
+                DropdownMenu(
+                    expanded = showMenu,
+                    onDismissRequest = { showMenu = false }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("Edit") },
+                        onClick = {
+                            showMenu = false
+                            onEdit()
+                        },
+                        leadingIcon = { Icon(Icons.Default.Edit, null) }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Delete") },
+                        onClick = {
+                            showMenu = false
+                            onDelete()
+                        },
+                        leadingIcon = {
+                            Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error)
+                        }
+                    )
                 }
             }
         }
     }
 }
 
-/**
- * A confirmation dialog for deleting an activity.
- */
 @Composable
 fun DeleteConfirmationDialog(
     activityName: String,
@@ -166,12 +225,17 @@ fun DeleteConfirmationDialog(
         confirmButton = {
             Button(
                 onClick = onConfirm,
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-            ) { Text("Delete") }
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.error
+                )
+            ) {
+                Text("Delete")
+            }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
         }
     )
 }
-

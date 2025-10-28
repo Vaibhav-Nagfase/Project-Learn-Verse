@@ -1,27 +1,25 @@
 package com.example.learnverse.data.remote
 
 import com.example.learnverse.data.model.*
+import com.example.learnverse.data.model.profile.UserProfile
+import com.example.learnverse.data.model.profile.UserProfileRequest
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.GET
-import retrofit2.http.Header
 import retrofit2.http.POST
 import retrofit2.http.Query
 import retrofit2.http.QueryMap
 import retrofit2.http.HTTP
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
-import okhttp3.ResponseBody
 import retrofit2.http.DELETE
 import retrofit2.http.Multipart
 import retrofit2.http.PUT
 import retrofit2.http.Part
 import retrofit2.http.Path
 import retrofit2.http.Url
-import retrofit2.Call
 import retrofit2.http.Field
 import retrofit2.http.FormUrlEncoded
-import retrofit2.http.Streaming
 
 interface ApiService {
 
@@ -78,17 +76,23 @@ interface ApiService {
         @Query("maxDistanceKm") distance: Int = 1000 // Default to 20km
     ): Response<PagedResponse<Activity>> // Assuming it's a paged response like filter
 
-    // NEW: Submit tutor verification request with documents
+    // ApiService.kt
     @Multipart
-    @POST("api/tutor-verification/register")
+    @POST("api/tutor-verification/submit")
     suspend fun registerTutor(
         @Part("email") email: RequestBody,
         @Part("fullName") fullName: RequestBody,
         @Part("phone") phone: RequestBody,
+        @Part("bio") bio: RequestBody,
+        @Part("qualifications") qualifications: List<String>,
+        @Part("experience") experience: RequestBody,
+        @Part("specializations") specializations: List<String>,
         @Part("termsAccepted") termsAccepted: RequestBody,
+        @Part profilePicture: MultipartBody.Part,
         @Part idDocument: MultipartBody.Part,
         @Part certificate: MultipartBody.Part
-    ): Response<Unit> // Assuming a simple success/fail response
+    ): Response<Unit>
+
 
     // NEW: Check the verification status
     @GET("api/tutor-verification/status/{email}")
@@ -155,14 +159,15 @@ interface ApiService {
 
     // --- NEW PROFILE ENDPOINTS ---
 
+    @GET("api/user/profile/get_profile")
+    suspend fun getProfile(): Response<ProfileResponse>
+
     @POST("api/user/profile/setup")
     suspend fun setupProfile(@Body profileRequest: UserProfileRequest): Response<UserProfile>
 
-    @GET("api/user/profile/get_profile")
-    suspend fun getProfile(): Response<UserProfile>
-
     @PUT("api/user/profile/update_profile")
     suspend fun updateProfile(@Body profileRequest: UserProfileRequest): Response<UserProfile>
+
 
 
     // --- Community Post Endpoints ---
@@ -267,4 +272,59 @@ interface ApiService {
     suspend fun enrollInActivity(
         @Body enrollmentData: Map<String, String>
     ): Response<Map<String, Any>>
+
+    /**
+     * ✅ Upload video to activity
+     */
+    @Multipart
+    @POST("api/tutor/activities/{activityId}/videos")
+    suspend fun uploadVideo(
+        @Path("activityId") activityId: String,
+        @Part video: MultipartBody.Part,
+        @Part("title") title: RequestBody,
+        @Part("description") description: RequestBody?,
+        @Part("order") order: RequestBody?
+    ): Response<Map<String, Any>>
+
+    /**
+     * ✅ Delete video from activity
+     */
+    @DELETE("api/tutor/activities/{activityId}/videos/{videoId}")
+    suspend fun deleteVideo(
+        @Path("activityId") activityId: String,
+        @Path("videoId") videoId: String
+    ): Response<Unit>
+
+    /**
+     * ✅ Add/Update meeting link
+     */
+    @POST("api/tutor/activities/{activityId}/meeting")
+    suspend fun addOrUpdateMeetingLink(
+        @Path("activityId") activityId: String,
+        @Body meetingData: Map<String, String>
+    ): Response<Map<String, Any>>
+
+    /**
+     * ✅ Delete meeting link
+     */
+    @DELETE("api/tutor/activities/{activityId}/meeting")
+    suspend fun deleteMeetingLink(
+        @Path("activityId") activityId: String
+    ): Response<Unit>
+
+    /**
+     * ✅ Get activity videos (for enrolled users)
+     */
+    @GET("api/activities/{activityId}/videos")
+    suspend fun getActivityVideos(
+        @Path("activityId") activityId: String
+    ): Response<List<Activity.VideoContent.Video>>
+
+    /**
+     * ✅ Get activity meeting link (for enrolled users)
+     */
+    @GET("api/activities/{activityId}/meeting")
+    suspend fun getActivityMeeting(
+        @Path("activityId") activityId: String
+    ): Response<Activity.VideoContent>
 }

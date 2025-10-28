@@ -1,4 +1,4 @@
-// MeetingTab.kt
+// MeetingTab.kt (COMPLETE REPLACEMENT)
 package com.example.learnverse.ui.screen.detail.tabs
 
 import android.content.Context
@@ -20,31 +20,79 @@ import com.example.learnverse.data.model.Activity
 @Composable
 fun MeetingTab(
     activity: Activity,
-    context: Context
+    isTutor: Boolean,
+    isEnrolled: Boolean,
+    context: Context,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit
 ) {
     val videoContent = activity.videoContent
     val hasMeeting = videoContent?.meetingLink != null
 
+    // Show meeting only if tutor (owner) or enrolled user
+    val canViewMeeting = isTutor || isEnrolled
+
     var showChooser by remember { mutableStateOf(false) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
+
+    if (!canViewMeeting) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+                modifier = Modifier.padding(32.dp)
+            ) {
+                Icon(
+                    Icons.Default.Lock,
+                    contentDescription = null,
+                    modifier = Modifier.size(64.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    "Enroll to Access Meeting",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    "Meeting link is only available to enrolled students",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+        return
+    }
 
     if (!hasMeeting) {
         Box(
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.Center
         ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
                 Icon(
                     Icons.Default.VideoCall,
                     contentDescription = null,
                     modifier = Modifier.size(64.dp),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                Spacer(Modifier.height(16.dp))
                 Text(
-                    "No meeting link available",
+                    if (isTutor) "No meeting link added yet" else "No meeting link available",
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                if (isTutor) {
+                    Text(
+                        "Tap the + button to add meeting link",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
         }
         return
@@ -64,24 +112,44 @@ fun MeetingTab(
             )
         ) {
             Column(
-                modifier = Modifier.padding(16.dp),
+                modifier = Modifier.padding(20.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        Icons.Default.VideoCall,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(32.dp)
-                    )
-                    Spacer(Modifier.width(12.dp))
-                    Text(
-                        "Live Meeting",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            Icons.Default.VideoCall,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(32.dp)
+                        )
+                        Spacer(Modifier.width(12.dp))
+                        Text(
+                            "Live Meeting",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    // Edit/Delete buttons (only for tutor)
+                    if (isTutor) {
+                        Row {
+                            IconButton(onClick = onEdit) {
+                                Icon(Icons.Default.Edit, "Edit")
+                            }
+                            IconButton(onClick = { showDeleteDialog = true }) {
+                                Icon(
+                                    Icons.Default.Delete,
+                                    "Delete",
+                                    tint = MaterialTheme.colorScheme.error
+                                )
+                            }
+                        }
+                    }
                 }
 
                 Divider()
@@ -98,7 +166,7 @@ fun MeetingTab(
                 // Meeting ID
                 videoContent.meetingId?.let { meetingId ->
                     InfoRowMeeting(
-                        icon = Icons.Default.Numbers,
+                        icon = Icons.Default.Tag,
                         label = "Meeting ID",
                         value = meetingId
                     )
@@ -115,7 +183,7 @@ fun MeetingTab(
             }
         }
 
-        // Join Button with Chooser
+        // Join Button
         Button(
             onClick = { showChooser = true },
             modifier = Modifier
@@ -149,18 +217,9 @@ fun MeetingTab(
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
-                Text(
-                    "1. Click 'Join Meeting' button above",
-                    style = MaterialTheme.typography.bodyMedium
-                )
-                Text(
-                    "2. Choose to open in browser or app",
-                    style = MaterialTheme.typography.bodyMedium
-                )
-                Text(
-                    "3. Enter Meeting ID and Passcode if required",
-                    style = MaterialTheme.typography.bodyMedium
-                )
+                Text("1. Click 'Join Meeting' button above")
+                Text("2. Choose to open in browser or app")
+                Text("3. Enter Meeting ID and Passcode if required")
             }
         }
     }
@@ -174,7 +233,6 @@ fun MeetingTab(
             confirmButton = {
                 TextButton(
                     onClick = {
-                        // Open in app (deep link)
                         val intent = Intent(Intent.ACTION_VIEW, Uri.parse(videoContent.meetingLink))
                         context.startActivity(intent)
                         showChooser = false
@@ -186,14 +244,12 @@ fun MeetingTab(
             dismissButton = {
                 TextButton(
                     onClick = {
-                        // Open in browser
                         val intent = Intent(Intent.ACTION_VIEW, Uri.parse(videoContent.meetingLink))
                         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                        intent.setPackage("com.android.chrome") // Force browser
                         try {
+                            intent.setPackage("com.android.chrome")
                             context.startActivity(intent)
                         } catch (e: Exception) {
-                            // Fallback to default browser
                             val fallbackIntent = Intent(Intent.ACTION_VIEW, Uri.parse(videoContent.meetingLink))
                             context.startActivity(fallbackIntent)
                         }
@@ -201,6 +257,33 @@ fun MeetingTab(
                     }
                 ) {
                     Text("Open in Browser")
+                }
+            }
+        )
+    }
+
+    // Delete confirmation dialog
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("Delete Meeting Link") },
+            text = { Text("Are you sure you want to delete this meeting link?") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        onDelete()
+                        showDeleteDialog = false
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error
+                    )
+                ) {
+                    Text("Delete")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text("Cancel")
                 }
             }
         )

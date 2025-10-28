@@ -6,7 +6,7 @@ import com.auth0.android.jwt.JWT
 import com.example.learnverse.data.model.CommunityPost
 import com.example.learnverse.data.model.FollowStats
 // Import user model if you have one for basic tutor info
-// import com.example.learnverse.data.model.UserProfile
+// import com.example.learnverse.data.model.profile.UserProfile
 import com.example.learnverse.data.repository.AuthRepository // To get token
 import com.example.learnverse.data.repository.CommunityRepository
 // Import user repository if needed
