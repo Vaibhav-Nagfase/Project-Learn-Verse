@@ -6,6 +6,8 @@ import com.example.learnverse.data.model.NaturalSearchRequest
 import com.example.learnverse.data.remote.ApiService
 import com.example.learnverse.data.model.ActivitiesByIdsRequest
 import com.example.learnverse.data.model.EnrollmentRequest
+import okhttp3.MultipartBody
+import retrofit2.Response
 
 class ActivitiesRepository(private val api: ApiService) {
 
@@ -76,13 +78,13 @@ class ActivitiesRepository(private val api: ApiService) {
     }
 
     // The 'token' parameter has been removed.
-    suspend fun enrollInActivity(activityId: String) {
-        // The "Bearer $token" argument has been removed.
-        val response = api.enrollInActivity(EnrollmentRequest(activityId))
-        if (!response.isSuccessful) {
-            throw Exception("Failed to enroll: ${response.message()}")
-        }
-    }
+//    suspend fun enrollInActivity(activityId: String) {
+//        // The "Bearer $token" argument has been removed.
+//        val response = api.enrollInActivity(EnrollmentRequest(activityId))
+//        if (!response.isSuccessful) {
+//            throw Exception("Failed to enroll: ${response.message()}")
+//        }
+//    }
 
     // The 'token' parameter has been removed.
     suspend fun getMyEnrolledActivities(): List<Activity> {
@@ -106,6 +108,41 @@ class ActivitiesRepository(private val api: ApiService) {
         }
 
         throw Exception("Failed to fetch activity details for enrollments")
+    }
+
+    /**
+     * Upload banner image
+     */
+    suspend fun uploadBanner(
+        activityId: String,
+        banner: MultipartBody.Part
+    ): Response<Map<String, Any>> {
+        return api.uploadBanner(activityId, banner)
+    }
+
+    /**
+     * Add review to activity
+     */
+    suspend fun addReview(
+        activityId: String,
+        reviewData: Map<String, Any>
+    ): Response<Map<String, Any>> {
+        return api.addReview(activityId, reviewData)
+    }
+
+    /**
+     * Get activity by ID
+     */
+    suspend fun getActivityById(activityId: String): Response<Activity> {
+        return api.getActivityById(activityId)
+    }
+
+    /**
+     * Enroll in activity
+     */
+    suspend fun enrollInActivity(activityId: String): Response<Map<String, Any>> {
+        val enrollmentData = mapOf("activityId" to activityId) // ✅ Wrap in Map
+        return api.enrollInActivity(enrollmentData)
     }
 
 }

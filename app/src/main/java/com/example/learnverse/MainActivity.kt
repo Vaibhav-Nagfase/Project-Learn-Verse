@@ -49,6 +49,7 @@ import com.example.learnverse.ui.screen.tutor.CreateActivityScreen
 import com.example.learnverse.ui.screen.tutor.TutorDashboardScreen
 import com.example.learnverse.ui.screen.tutor.TutorProfileScreen
 import com.example.learnverse.ui.screen.tutor.TutorVerificationScreen
+import com.example.learnverse.ui.screen.video.VideoPlayerScreen
 import com.example.learnverse.ui.theme.LearnVerseTheme
 import com.example.learnverse.viewmodel.*
 
@@ -239,9 +240,26 @@ fun MainNavGraph(
             ActivityDetailScreen(
                 activityId = backStackEntry.arguments?.getString("activityId") ?: "",
                 activitiesViewModel = activitiesViewModel,
+                authViewModel = authViewModel,
                 navController = navController
             )
         }
+
+        composable(
+            route = "video_player/{activityId}/{videoId}",
+            arguments = listOf(
+                navArgument("activityId") { type = NavType.StringType },
+                navArgument("videoId") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            VideoPlayerScreen(
+                activityId = backStackEntry.arguments?.getString("activityId") ?: "",
+                videoId = backStackEntry.arguments?.getString("videoId") ?: "",
+                activitiesViewModel = activitiesViewModel,
+                navController = navController
+            )
+        }
+
         composable("tutorVerification") {
             TutorVerificationScreen(navController, tutorVerificationViewModel, authViewModel)
         }
@@ -272,10 +290,11 @@ fun MainNavGraph(
                 TutorProfileScreen(
                     tutorId = tutorIdArg,
                     navController = navController,
-                    authViewModel = authViewModel         // Pass authViewModel
+                    authViewModel = authViewModel,
+                    activitiesViewModel = activitiesViewModel
                 )
             } else {
-                Text("Error: Tutor ID missing") // Handle error
+                Text("Error: Tutor ID missing")
             }
         }
 

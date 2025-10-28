@@ -53,8 +53,8 @@ fun HomeScreen(
     }
 
     // Get the data from the ViewModel
-    val recommendedActivities = activitiesViewModel.activities // Reusing the main feed for recommendations
-    val nearbyActivities = activitiesViewModel.nearbyActivities
+    val recommendedActivities by activitiesViewModel.activities.collectAsStateWithLifecycle()
+    val nearbyActivities by remember { derivedStateOf { activitiesViewModel.nearbyActivities } }
 
     // Set up and launch the location permission request
     val locationPermissionState = rememberPermissionState(Manifest.permission.ACCESS_FINE_LOCATION)

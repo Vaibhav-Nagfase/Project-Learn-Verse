@@ -128,10 +128,10 @@ class TutorViewModel(private val repository: TutorRepository) : ViewModel() {
             classType = it.classType?.replaceFirstChar { char -> char.uppercase() } ?: "Group"
             activityType = it.activityType?.replaceFirstChar { char -> char.uppercase() } ?: "Course"
             mode = it.mode.replaceFirstChar { char -> char.uppercase() }
-            difficulty = it.difficulty.replaceFirstChar { char -> char.uppercase() }
+            difficulty = it.difficulty?.replaceFirstChar { char -> char.uppercase() } ?: ""
             tags = it.tags?.joinToString(", ") ?: ""
             price = it.pricing?.price.toString()
-            totalSessions = it.durationInfo?.totalSessions.toString()
+            totalSessions = it.duration?.totalSessions.toString()
         }
     }
 

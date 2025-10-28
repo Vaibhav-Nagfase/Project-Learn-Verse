@@ -1,9 +1,9 @@
+// ActivitiesViewModel.kt
 package com.example.learnverse.viewmodel
 
 import android.annotation.SuppressLint
-import com.google.android.gms.location.LocationServices
-import com.google.android.gms.location.Priority
 import android.content.Context
+import android.net.Uri
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -13,37 +13,65 @@ import androidx.lifecycle.viewModelScope
 import com.example.learnverse.data.model.Activity
 import com.example.learnverse.data.model.NaturalSearchRequest
 import com.example.learnverse.data.repository.ActivitiesRepository
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.asRequestBody
+import java.io.File
+import java.io.FileOutputStream
 
 class ActivitiesViewModel(
     private val repository: ActivitiesRepository,
     private val context: Context
 ) : ViewModel() {
 
-    var activities by mutableStateOf<List<Activity>>(emptyList())
-        private set
+    // Main activities list
+    private val _activities = MutableStateFlow<List<Activity>>(emptyList())
+    val activities: StateFlow<List<Activity>> = _activities.asStateFlow()
 
+    // Enrolled activity IDs
+    private val _enrolledActivities = MutableStateFlow<Set<String>>(emptySet())
+    val enrolledActivities: StateFlow<Set<String>> = _enrolledActivities.asStateFlow()
+
+    // Full enrolled activities list
     private val _myEnrolledActivities = MutableStateFlow<List<Activity>>(emptyList())
-    val myEnrolledActivities: StateFlow<List<Activity>> = _myEnrolledActivities
+    val myEnrolledActivities: StateFlow<List<Activity>> = _myEnrolledActivities.asStateFlow()
 
-    private var enrolledActivityIds by mutableStateOf<Set<String>>(emptySet())
-    val isEnrolled: (String) -> Boolean = { it in enrolledActivityIds }
+    // Helper for checking enrollment
+    val isEnrolled: (String) -> Boolean = { activityId ->
+        _enrolledActivities.value.contains(activityId)
+    }
 
+    // Search query
     var searchQuery by mutableStateOf("")
 
+    // Loading state
     var isLoading by mutableStateOf(false)
         private set
-    var errorMessage by mutableStateOf<String?>(null)
 
+    // Error message
+    var errorMessage by mutableStateOf<String?>(null)
+        private set
+
+    // Initial load flag
     private var isInitialFeedLoaded = false
 
+    // Filter state
     private val _isFiltered = mutableStateOf(false)
     val isFiltered: State<Boolean> = _isFiltered
 
+    // Nearby activities
     var nearbyActivities by mutableStateOf<List<Activity>>(emptyList())
         private set
+
+    fun updateSearchQuery(query: String) {
+        searchQuery = query
+    }
 
     fun fetchMyFeed(forceRefresh: Boolean = false) {
         if (isInitialFeedLoaded && !forceRefresh) return
@@ -52,8 +80,8 @@ class ActivitiesViewModel(
             isLoading = true
             errorMessage = null
             try {
-                // The token logic has been removed.
-                activities = repository.getMyFeed()
+                val feedActivities = repository.getMyFeed()
+                _activities.value = feedActivities // Use _activities instead of activities
                 isInitialFeedLoaded = true
                 _isFiltered.value = false
             } catch (e: Exception) {
@@ -70,7 +98,7 @@ class ActivitiesViewModel(
         viewModelScope.launch {
             isLoading = true
             errorMessage = null
-            // The token logic has been removed.
+
             fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null)
                 .addOnSuccessListener { location ->
                     if (location != null) {
@@ -81,7 +109,6 @@ class ActivitiesViewModel(
                                     userLatitude = location.latitude,
                                     userLongitude = location.longitude
                                 )
-                                // The token is no longer passed to the repository.
                                 val results = repository.naturalSearch(searchRequest)
                                 updateActivitiesList(results)
                             } catch (e: Exception) {
@@ -107,20 +134,18 @@ class ActivitiesViewModel(
         val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
 
         viewModelScope.launch {
-            // The token logic has been removed.
             fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null)
                 .addOnSuccessListener { location ->
                     if (location != null) {
                         viewModelScope.launch {
                             try {
                                 isLoading = true
-                                // The token is no longer passed to the repository.
                                 nearbyActivities = repository.getNearbyActivities(
                                     latitude = location.latitude,
                                     longitude = location.longitude
                                 )
                             } catch (e: Exception) {
-                                // Handle error
+                                errorMessage = "Failed to load nearby activities: ${e.message}"
                             } finally {
                                 isLoading = false
                             }
@@ -133,57 +158,168 @@ class ActivitiesViewModel(
     fun fetchMyEnrollments() {
         viewModelScope.launch {
             try {
-                // The token logic has been removed.
                 val enrolled = repository.getMyEnrolledActivities()
-                _myEnrolledActivities.value = enrolled
-                enrolledActivityIds = enrolled.map { it.id }.toSet()
+                _myEnrolledActivities.value = enrolled // Now this will work
+                _enrolledActivities.value = enrolled.map { it.id }.toSet()
             } catch (e: Exception) {
                 errorMessage = "Failed to load your courses: ${e.message}"
             }
         }
     }
 
-    fun enrollInActivity(activityId: String) {
-        viewModelScope.launch {
-            try {
-                // The token logic has been removed.
-                repository.enrollInActivity(activityId)
-
-                enrolledActivityIds = enrolledActivityIds + activityId
-                val updatedList = activities.map { activity ->
-                    if (activity.id == activityId) {
-                        activity.copy(
-                            enrollmentInfo = activity.enrollmentInfo?.copy(
-                                enrolledCount = activity.enrollmentInfo.enrolledCount + 1
-                            )
-                        )
-                    } else {
-                        activity
-                    }
-                }
-                activities = updatedList
-                fetchMyEnrollments()
-
-            } catch (e: Exception) {
-                errorMessage = "Enrollment failed: ${e.message}"
-            }
-        }
-    }
-
-    // Unchanged methods
-    fun getActivityById(id: String): Activity? {
-        return activities.find { it.id == id }
-    }
-
     fun updateActivitiesList(newActivities: List<Activity>) {
-        activities = newActivities
+        _activities.value = newActivities // Use _activities
         isInitialFeedLoaded = true
         _isFiltered.value = true
     }
 
     fun clearData() {
-        activities = emptyList()
+        _activities.value = emptyList() // Use _activities
         _isFiltered.value = false
         isInitialFeedLoaded = false
+    }
+
+    /**
+     * Upload banner image for activity
+     */
+    fun uploadBanner(activityId: String, imageUri: Uri, context: Context) {
+        viewModelScope.launch {
+            try {
+                val file = uriToFile(imageUri, context)
+                val requestFile = file.asRequestBody("image/*".toMediaTypeOrNull())
+                val body = MultipartBody.Part.createFormData("banner", file.name, requestFile)
+
+                val response = repository.uploadBanner(activityId, body)
+
+                if (response.isSuccessful) {
+                    val bannerUrl = response.body()?.get("bannerUrl") as? String
+
+                    _activities.value = _activities.value.map { activity ->
+                        if (activity.id == activityId) {
+                            activity.copy(bannerImageUrl = bannerUrl)
+                        } else {
+                            activity
+                        }
+                    }
+
+                    android.widget.Toast.makeText(
+                        context,
+                        "Banner updated successfully!",
+                        android.widget.Toast.LENGTH_SHORT
+                    ).show()
+                }
+
+                file.delete()
+            } catch (e: Exception) {
+                e.printStackTrace()
+                android.widget.Toast.makeText(
+                    context,
+                    "Failed to upload banner: ${e.message}",
+                    android.widget.Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
+    }
+
+    /**
+     * Add review to activity
+     */
+    fun addReview(activityId: String, rating: Int, comment: String) {
+        viewModelScope.launch {
+            try {
+                val reviewData = mapOf(
+                    "rating" to rating,
+                    "comment" to comment
+                )
+
+                val response = repository.addReview(activityId, reviewData)
+
+                if (response.isSuccessful) {
+                    fetchActivityDetails(activityId)
+
+                    android.widget.Toast.makeText(
+                        context,
+                        "Review added successfully!",
+                        android.widget.Toast.LENGTH_SHORT
+                    ).show()
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                android.widget.Toast.makeText(
+                    context,
+                    "Failed to add review: ${e.message}",
+                    android.widget.Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
+    }
+
+    /**
+     * Fetch single activity details
+     */
+    private suspend fun fetchActivityDetails(activityId: String) {
+        try {
+            val response = repository.getActivityById(activityId)
+            if (response.isSuccessful) {
+                response.body()?.let { updatedActivity ->
+                    _activities.value = _activities.value.map { activity ->
+                        if (activity.id == activityId) updatedActivity else activity
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    /**
+     * Helper: Convert URI to File
+     */
+    private fun uriToFile(uri: Uri, context: Context): File {
+        val inputStream = context.contentResolver.openInputStream(uri)
+        val tempFile = File.createTempFile("banner_", ".jpg", context.cacheDir)
+
+        inputStream?.use { input ->
+            FileOutputStream(tempFile).use { output ->
+                input.copyTo(output)
+            }
+        }
+
+        return tempFile
+    }
+
+    /**
+     * Get activity by ID
+     */
+    fun getActivityById(activityId: String): Activity? {
+        return _activities.value.find { it.id == activityId }
+    }
+
+    /**
+     * Enroll in activity
+     */
+    fun enrollInActivity(activityId: String) {
+        viewModelScope.launch {
+            try {
+                val response = repository.enrollInActivity(activityId)
+
+                if (response.isSuccessful) {
+                    _enrolledActivities.value = _enrolledActivities.value + activityId
+
+                    android.widget.Toast.makeText(
+                        context,
+                        "Enrolled successfully!",
+                        android.widget.Toast.LENGTH_SHORT
+                    ).show()
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                android.widget.Toast.makeText(
+                    context,
+                    "Enrollment failed: ${e.message}",
+                    android.widget.Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
     }
 }

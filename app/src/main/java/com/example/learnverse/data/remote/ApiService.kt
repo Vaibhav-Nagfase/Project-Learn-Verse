@@ -120,10 +120,10 @@ interface ApiService {
 
     // --- ENROLLMENT ENDPOINTS ---
 
-    @POST("api/enrollments/enroll")
-    suspend fun enrollInActivity(
-        @Body request: EnrollmentRequest
-    ): Response<Unit> // Assuming we don't need the response body for now
+//    @POST("api/enrollments/enroll")
+//    suspend fun enrollInActivity(
+//        @Body request: EnrollmentRequest
+//    ): Response<Unit> // Assuming we don't need the response body for now
 
     @GET("api/enrollments/my-enrollments")
     suspend fun getMyEnrollments(): Response<MyEnrollmentsResponse>
@@ -232,4 +232,39 @@ interface ApiService {
 
     @GET("api/community/follow/stats/{userId}")
     suspend fun getFollowStats(@Path("userId") userId: String): Response<FollowStats>
+
+    /**
+     * Upload banner for activity
+     */
+    @Multipart
+    @PUT("api/activities/tutor/activities/{activityId}/banner")
+    suspend fun uploadBanner(
+        @Path("activityId") activityId: String,
+        @Part banner: MultipartBody.Part
+    ): Response<Map<String, Any>>
+
+    /**
+     * Add review to activity
+     */
+    @POST("api/activities/{activityId}/reviews")
+    suspend fun addReview(
+        @Path("activityId") activityId: String,
+        @Body reviewData: Map<String, Any>
+    ): Response<Map<String, Any>>
+
+    /**
+     * Get single activity details
+     */
+    @GET("api/activities/{activityId}")
+    suspend fun getActivityById(
+        @Path("activityId") activityId: String
+    ): Response<Activity>
+
+    /**
+     * Enroll in activity
+     */
+    @POST("api/enrollments/enroll")
+    suspend fun enrollInActivity(
+        @Body enrollmentData: Map<String, String>
+    ): Response<Map<String, Any>>
 }

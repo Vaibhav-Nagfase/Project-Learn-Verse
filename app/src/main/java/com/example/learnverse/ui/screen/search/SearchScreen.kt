@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.colorResource
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.learnverse.R
 import androidx.navigation.NavController
 import com.example.learnverse.data.model.Activity
@@ -82,7 +83,7 @@ fun SearchScreen(
         }
     }
 
-    val activities = activitiesViewModel.activities
+    val activities by activitiesViewModel.activities.collectAsStateWithLifecycle()
     var currentSearchQuery by remember { mutableStateOf(activitiesViewModel.searchQuery) }
     val isLoading = activitiesViewModel.isLoading
 
@@ -273,21 +274,50 @@ fun ActivityResultCard(activity: Activity, onClick: () -> Unit) {
             }
             Spacer(modifier = Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(text = activity.title, style = MaterialTheme.typography.titleMedium, maxLines = 2)
-                Text(text = activity.tutorName, style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                Text(
+                    text = activity.title,
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 2
+                )
+                Text(
+                    text = activity.tutorName,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.Gray
+                )
                 Spacer(modifier = Modifier.height(8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Schedule, contentDescription = "Duration", modifier = Modifier.size(16.dp), tint = Color.Gray)
+                        Icon(
+                            Icons.Default.Schedule,
+                            contentDescription = "Duration",
+                            modifier = Modifier.size(16.dp),
+                            tint = Color.Gray
+                        )
                         Spacer(modifier = Modifier.width(4.dp))
-                        val durationText = activity.durationInfo?.totalDuration?.let { "${it / 60} Hr." } ?: "N/A"
-                        Text(text = durationText, style = MaterialTheme.typography.bodySmall)
+                        val durationText = (activity.duration?.totalDuration?.let {
+                            "${it / 60} Hr."
+                        }) ?: "N/A"
+                        Text(
+                            text = durationText,
+                            style = MaterialTheme.typography.bodySmall
+                        )
                     }
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Person, contentDescription = "Users", modifier = Modifier.size(16.dp), tint = Color.Gray)
+                        Icon(
+                            Icons.Default.Person,
+                            contentDescription = "Users",
+                            modifier = Modifier.size(16.dp),
+                            tint = Color.Gray
+                        )
                         Spacer(modifier = Modifier.width(4.dp))
-                        val userCountText = activity.enrollmentInfo?.enrolledCount?.let { "$it User" } ?: "N/A"
-                        Text(text = userCountText, style = MaterialTheme.typography.bodySmall)
+                        // FIXED: Added parentheses for proper precedence
+                        val userCountText = (activity.enrollmentInfo?.enrolledCount?.let {
+                            "$it User"
+                        }) ?: "N/A"
+                        Text(
+                            text = userCountText,
+                            style = MaterialTheme.typography.bodySmall
+                        )
                     }
                 }
             }
