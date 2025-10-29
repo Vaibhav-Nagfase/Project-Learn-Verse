@@ -369,4 +369,10 @@ interface ApiService {
     suspend fun getActivityMeeting(
         @Path("activityId") activityId: String
     ): Response<Activity.VideoContent>
+
+    /**
+     * Get complete home feed
+     */
+    @GET("api/activities/home-feed")
+    suspend fun getHomeFeed(): Response<HomeFeedResponse>
 }

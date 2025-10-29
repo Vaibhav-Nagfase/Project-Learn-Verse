@@ -9,6 +9,7 @@ import com.example.learnverse.data.model.AddReviewResponse
 import com.example.learnverse.data.model.CreateReviewRequest
 import com.example.learnverse.data.model.DeleteReviewResponse
 import com.example.learnverse.data.model.EnrollmentRequest
+import com.example.learnverse.data.model.HomeFeedResponse
 import com.example.learnverse.data.model.MyReviewsResponse
 import com.example.learnverse.data.model.ReviewsResponse
 import com.example.learnverse.data.model.UpdateReviewRequest
@@ -205,6 +206,17 @@ class ActivitiesRepository(private val api: ApiService) {
     suspend fun checkUserReview(activityId: String): Boolean {
         val response = api.checkUserReview(activityId)
         return response.isSuccessful && response.body()?.hasReviewed == true
+    }
+
+    /**
+     * Get home feed
+     */
+    suspend fun getHomeFeed(): HomeFeedResponse {
+        val response = api.getHomeFeed()
+        if (response.isSuccessful && response.body() != null) {
+            return response.body()!!
+        }
+        throw Exception("Failed to fetch home feed: ${response.message()}")
     }
 
 }

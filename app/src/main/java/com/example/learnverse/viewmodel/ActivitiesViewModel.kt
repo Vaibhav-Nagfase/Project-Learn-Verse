@@ -11,6 +11,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.learnverse.data.model.Activity
+import com.example.learnverse.data.model.HomeFeedResponse
 import com.example.learnverse.data.model.NaturalSearchRequest
 import com.example.learnverse.data.model.Review
 import com.example.learnverse.data.repository.ActivitiesRepository
@@ -59,6 +60,9 @@ class ActivitiesViewModel(
 
     private val _myReviews = MutableStateFlow<List<Review>>(emptyList())
     val myReviews: StateFlow<List<Review>> = _myReviews.asStateFlow()
+
+    private val _homeFeed = MutableStateFlow<HomeFeedResponse?>(null)
+    val homeFeed: StateFlow<HomeFeedResponse?> = _homeFeed.asStateFlow()
 
 
     // Helper for checking enrollment
@@ -523,6 +527,27 @@ class ActivitiesViewModel(
                     "Enrollment failed: ${e.message}",
                     android.widget.Toast.LENGTH_SHORT
                 ).show()
+            }
+        }
+    }
+
+    /**
+     * Fetch complete home feed
+     */
+    fun fetchHomeFeed() {
+        viewModelScope.launch {
+            try {
+                isLoading = true
+                errorMessage = null
+
+                val feed = repository.getHomeFeed()
+                _homeFeed.value = feed
+
+            } catch (e: Exception) {
+                e.printStackTrace()
+                errorMessage = "Failed to load home feed: ${e.message}"
+            } finally {
+                isLoading = false
             }
         }
     }
