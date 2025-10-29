@@ -16,7 +16,7 @@ class ApiClient(context: Context) {
     companion object {
         @Volatile
         private var INSTANCE: ApiClient? = null // Store the ApiClient instance
-        private const val BASE_URL = "http://localhost:8080/"
+        private const val BASE_URL = "https://learnverse-sy8l.onrender.com/"
 
         // Updated getInstance to return the ApiClient itself
         fun getInstance(context: Context): ApiClient {

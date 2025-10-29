@@ -78,6 +78,14 @@ fun HomeScreen(
         activitiesViewModel.fetchHomeFeed()
     }
 
+    LaunchedEffect(searchQuery) {
+        if (searchQuery.isNotBlank()) {
+            activitiesViewModel.performNaturalSearch(context)
+        } else {
+            activitiesViewModel.fetchMyFeed()
+        }
+    }
+
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
     val verificationStatus by authViewModel.verificationStatus.collectAsState()
@@ -201,7 +209,8 @@ fun HomeScreen(
                 // 1. Header
                 item {
                     HomeHeader(
-                        onProfileClick = { scope.launch { drawerState.open() } }
+                        onProfileClick = { scope.launch { drawerState.open() } },
+                        modifier = Modifier.padding(horizontal = 8.dp)
                     )
                 }
 
@@ -210,7 +219,10 @@ fun HomeScreen(
                     SearchCard(
                         searchQuery = searchQuery,
                         onQueryChange = { searchQuery = it },
-                        onSearch = { navController.navigate("feed") }
+                        onSearch = {
+                            activitiesViewModel.updateSearchQuery(searchQuery)
+                            navController.navigate("feed")
+                        }
                     )
                 }
 
@@ -319,10 +331,10 @@ fun HomeScreen(
 
 
 @Composable
-fun HomeHeader(onProfileClick: () -> Unit) {
+fun HomeHeader(onProfileClick: () -> Unit, modifier: Modifier = Modifier) {
     // This would ideally get the user's name from a UserProfile object
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .padding(top = 16.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -334,7 +346,7 @@ fun HomeHeader(onProfileClick: () -> Unit) {
         Image(
             painter = painterResource(id = R.drawable.boy),
             contentDescription = "Profile",
-            modifier = Modifier
+            modifier = modifier
                 .size(48.dp)
                 .clip(CircleShape)
                 .clickable { onProfileClick() }
@@ -345,6 +357,7 @@ fun HomeHeader(onProfileClick: () -> Unit) {
 @Composable
 fun SearchCard(searchQuery: String, onQueryChange: (String) -> Unit, onSearch: () -> Unit) {
     Card(
+        modifier = Modifier.padding(horizontal = 8.dp),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = Color(0xFFE0F7FA))
     ) {
@@ -428,7 +441,7 @@ fun CategoriesSection(
     categories: List<String>,
     onCategoryClick: (String) -> Unit
 ) {
-    Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+    Column(modifier = Modifier.padding(horizontal = 8.dp)) {
         Text(
             "Browse by Category",
             style = MaterialTheme.typography.titleLarge,
