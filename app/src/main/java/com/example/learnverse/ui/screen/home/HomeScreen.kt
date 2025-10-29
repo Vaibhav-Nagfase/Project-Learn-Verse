@@ -26,6 +26,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -34,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
+import coil.compose.AsyncImage
 import com.example.learnverse.R
 import com.example.learnverse.data.model.Activity
 import com.example.learnverse.viewmodel.ActivitiesViewModel
@@ -52,6 +55,8 @@ fun HomeScreen(
 ) {
     val context = LocalContext.current
     var searchQuery by remember { mutableStateOf("") }
+    val homeFeed by activitiesViewModel.homeFeed.collectAsState()
+    val isLoading by remember { derivedStateOf { activitiesViewModel.isLoading } }
 
     // ADD THIS BLOCK TO AUTOMATICALLY FETCH THE FEED
     LaunchedEffect(Unit) {
@@ -59,8 +64,8 @@ fun HomeScreen(
     }
 
     // Get the data from the ViewModel
-    val recommendedActivities = activitiesViewModel.activities // Reusing the main feed for recommendations
-    val nearbyActivities = activitiesViewModel.nearbyActivities
+    val recommendedActivities by activitiesViewModel.activities.collectAsStateWithLifecycle()
+    val nearbyActivities by remember { derivedStateOf { activitiesViewModel.nearbyActivities } }
 
     // Set up and launch the location permission request
     val locationPermissionState = rememberPermissionState(Manifest.permission.ACCESS_FINE_LOCATION)
@@ -75,11 +80,16 @@ fun HomeScreen(
         }
     }
 
+    LaunchedEffect(Unit) {
+        activitiesViewModel.fetchHomeFeed()
+    }
+
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
 
     val verificationStatus by authViewModel.verificationStatus.collectAsState()
     val hasProfile by authViewModel.hasProfile.collectAsStateWithLifecycle()
+    val currentUserName by authViewModel.currentUserName.collectAsStateWithLifecycle()
 
     ModalNavigationDrawer(
         drawerState = drawerState,
@@ -204,7 +214,8 @@ fun HomeScreen(
                     HomeHeader(
                         onProfileClick = {
                             scope.launch { drawerState.open() }
-                        }
+                        },
+                        currentUserName = currentUserName
                     )
                 }
 
@@ -222,53 +233,102 @@ fun HomeScreen(
                     )
                 }
 
-                // 3. Recommended Activities - Displaying first 5 items from the main feed
-                item {
-                    Text("Recommended Activities", style = MaterialTheme.typography.titleLarge)
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    if (recommendedActivities.isNotEmpty()) {
-                        LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            items(recommendedActivities.take(5)) { activity ->
-                                NearbyActivityCard(activity = activity) {
-                                    navController.navigate("activityDetail/${activity.id}")
-                                }
-                            }
+                // Loading State
+                if (isLoading && homeFeed == null) {
+                    item {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator()
                         }
-                    } else {
-                        Text(
-                            "No recommendations found yet.",
-                            style = MaterialTheme.typography.bodyMedium
-                        )
                     }
                 }
 
-                // 4. Activities Near You - Dynamic horizontal list
-                item {
-                    Text("Activities Near You", style = MaterialTheme.typography.titleLarge)
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    if (locationPermissionState.status.isGranted) {
-                        if (nearbyActivities.isNotEmpty()) {
-                            LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                items(nearbyActivities) { activity ->
-                                    NearbyActivityCard(activity = activity) {
-                                        navController.navigate("activityDetail/${activity.id}")
-                                    }
+                // Home Feed Content
+                homeFeed?.let { feed ->
+                    // 3. Categories
+                    if (feed.categories.isNotEmpty()) {
+                        item {
+                            CategoriesSection(
+                                categories = feed.categories,
+                                onCategoryClick = { category ->
+                                    navController.navigate("feed?category=$category")
                                 }
-                            }
-                        } else {
-                            // You could show a loading indicator here while it fetches
-                            Text(
-                                "Searching for nearby activities...",
-                                style = MaterialTheme.typography.bodyMedium
                             )
                         }
-                    } else {
-                        Text(
-                            "Enable location permission to see activities near you.",
-                            style = MaterialTheme.typography.bodyMedium
-                        )
+                    }
+
+                    // 4. Featured Activities
+                    if (feed.featured.isNotEmpty()) {
+                        item {
+                            FeaturedSection(
+                                activities = feed.featured,
+                                onActivityClick = { activity ->
+                                    navController.navigate("activityDetail/${activity.id}")
+                                }
+                            )
+                        }
+                    }
+
+                    // 5. Recommended For You
+                    if (feed.recommended.isNotEmpty()) {
+                        item {
+                            HorizontalActivitySection(
+                                title = "Recommended For You",
+                                activities = feed.recommended,
+                                onActivityClick = { activity ->
+                                    navController.navigate("activityDetail/${activity.id}")
+                                },
+                                onSeeAllClick = { navController.navigate("feed") }
+                            )
+                        }
+                    }
+
+                    // 6. Popular This Week
+                    if (feed.popular.isNotEmpty()) {
+                        item {
+                            HorizontalActivitySection(
+                                title = "Popular This Week",
+                                activities = feed.popular,
+                                onActivityClick = { activity ->
+                                    navController.navigate("activityDetail/${activity.id}")
+                                },
+                                onSeeAllClick = { navController.navigate("feed?sort=popular") }
+                            )
+                        }
+                    }
+
+                    // 7. Top Rated
+                    if (feed.topRated.isNotEmpty()) {
+                        item {
+                            HorizontalActivitySection(
+                                title = "Top Rated",
+                                icon = Icons.Default.Star,
+                                activities = feed.topRated,
+                                onActivityClick = { activity ->
+                                    navController.navigate("activityDetail/${activity.id}")
+                                },
+                                onSeeAllClick = { navController.navigate("feed?sort=rating") }
+                            )
+                        }
+                    }
+
+                    // 8. New on LearnVerse
+                    if (feed.newActivities.isNotEmpty()) {
+                        item {
+                            HorizontalActivitySection(
+                                title = "New on LearnVerse",
+                                icon = Icons.Default.FiberNew,
+                                activities = feed.newActivities,
+                                onActivityClick = { activity ->
+                                    navController.navigate("activityDetail/${activity.id}")
+                                },
+                                onSeeAllClick = { navController.navigate("feed?sort=newest") }
+                            )
+                        }
                     }
                 }
             }
@@ -280,8 +340,9 @@ fun HomeScreen(
 // --- Reusable and Updated Composables for HomeScreen ---
 
 @Composable
-fun HomeHeader(onProfileClick: () -> Unit) {
+fun HomeHeader(onProfileClick: () -> Unit, currentUserName: String?) {
     // This would ideally get the user's name from a UserProfile object
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -290,7 +351,7 @@ fun HomeHeader(onProfileClick: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column {
-            Text("Hello, Ronaldo", style = MaterialTheme.typography.headlineMedium) // TODO: Get user name
+            Text( if(currentUserName == null){"Hello, Kid"}else{"Hello, ${currentUserName}"}, style = MaterialTheme.typography.headlineMedium) // TODO: Get user name
         }
         Image(
             painter = painterResource(id = R.drawable.boy),
@@ -446,6 +507,227 @@ fun BottomNavigationBar(navController: NavController) {
                     }
                 }
             )
+        }
+    }
+}
+
+@Composable
+fun CategoriesSection(
+    categories: List<String>,
+    onCategoryClick: (String) -> Unit
+) {
+    Column() {
+        Text(
+            "Browse by Category",
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            items(categories.size) { index ->
+                SuggestionChip(
+                    onClick = { onCategoryClick(categories[index]) },
+                    label = { Text(categories[index].capitalize()) }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun FeaturedSection(
+    activities: List<Activity>,
+    onActivityClick: (Activity) -> Unit
+) {
+    Column() {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    Icons.Default.Star,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    "Featured",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+        Spacer(modifier = Modifier.height(12.dp))
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            items(activities.size) { index ->
+                FeaturedActivityCard(
+                    activity = activities[index],
+                    onClick = { onActivityClick(activities[index]) }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun FeaturedActivityCard(
+    activity: Activity,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .width(300.dp)
+            .clickable(onClick = onClick),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer
+        )
+    ) {
+        Column {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(160.dp)
+                    .background(MaterialTheme.colorScheme.secondaryContainer),
+                contentAlignment = Alignment.Center
+            ) {
+                // Add banner image here if available
+                if (!activity.bannerImageUrl.isNullOrEmpty()) {
+                    AsyncImage(
+                        model = activity.bannerImageUrl,
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Icon(
+                        Icons.Default.School,
+                        contentDescription = null,
+                        modifier = Modifier.size(64.dp),
+                        tint = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                }
+
+                // Featured badge
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(8.dp)
+                        .background(
+                            MaterialTheme.colorScheme.primary,
+                            RoundedCornerShape(8.dp)
+                        )
+                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                ) {
+                    Text(
+                        "FEATURED",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    text = activity.title ?: "",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 2
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Default.Person,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = activity.tutorName ?: "",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                activity.reviews?.averageRating?.let { rating ->
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            Icons.Default.Star,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                            tint = Color(0xFFFFA000)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            String.format("%.1f", rating),
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            " (${activity.reviews?.totalReviews ?: 0})",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun HorizontalActivitySection(
+    title: String,
+    icon: ImageVector? = null,
+    activities: List<Activity>,
+    onActivityClick: (Activity) -> Unit,
+    onSeeAllClick: () -> Unit
+) {
+    Column() {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                icon?.let {
+                    Icon(
+                        it,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                }
+                Text(
+                    title,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+            TextButton(onClick = onSeeAllClick) {
+                Text("See All")
+                Icon(Icons.Default.ArrowForward, contentDescription = null)
+            }
+        }
+        Spacer(modifier = Modifier.height(12.dp))
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            items(activities.size) { index ->
+                NearbyActivityCard(
+                    activity = activities[index],
+                    onClick = { onActivityClick(activities[index]) }
+                )
+            }
         }
     }
 }

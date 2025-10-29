@@ -18,6 +18,8 @@ import kotlinx.coroutines.launch
 import com.auth0.android.jwt.JWT
 import com.example.learnverse.data.model.TutorVerificationStatus
 import com.example.learnverse.data.repository.ProfileRepository
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 // State for app-level navigation and flow control. (Unchanged)
 sealed class AuthState {
@@ -276,6 +278,17 @@ class AuthViewModel(
             interestSelectionCancelled = true
             repository.saveInterestsSkippedFlag(true)
             _authState.value = AuthState.Authenticated
+        }
+    }
+
+    suspend fun getTutorVerificationStatus(email: String): TutorVerificationStatus {
+        return withContext(Dispatchers.IO) {
+            val response = repository.getTutorVerificationStatus(email)
+            if (response.isSuccessful && response.body() != null) {
+                response.body()!!
+            } else {
+                throw Exception("Failed to fetch verification status")
+            }
         }
     }
 }

@@ -22,6 +22,7 @@ import com.example.learnverse.data.model.Activity
 // Import screens needed for nested navigation
 import com.example.learnverse.ui.screen.community.DiscoverScreen
 import com.example.learnverse.ui.screen.community.MyPostsScreen
+import com.example.learnverse.viewmodel.ActivitiesViewModel
 // Import ViewModels
 import com.example.learnverse.viewmodel.AuthViewModel
 import com.example.learnverse.viewmodel.CommunityViewModel
@@ -34,8 +35,10 @@ fun TutorDashboardScreen(
     mainNavController: NavController, // Renamed: NavController for outer graph
     authViewModel: AuthViewModel,
     tutorViewModel: TutorViewModel,
+    activitiesViewModel: ActivitiesViewModel,
     communityViewModel: CommunityViewModel // Needed for Discover/MyPosts
 ) {
+
     val nestedNavController = rememberNavController() // Controller for internal tabs
 
     Scaffold(
@@ -83,6 +86,7 @@ fun TutorDashboardScreen(
             composable(TutorScreenRoutes.Dashboard.route) {
                 TutorDashboardContent(
                     tutorViewModel = tutorViewModel,
+                    activitiesViewModel = activitiesViewModel,
                     mainNavController = mainNavController // Pass outer NavController for actions
                 )
             }
@@ -151,6 +155,7 @@ fun TutorBottomNavigationBar(navController: NavHostController) {
 @Composable
 fun TutorDashboardContent(
     tutorViewModel: TutorViewModel,
+    activitiesViewModel: ActivitiesViewModel,
     mainNavController: NavController
 ) {
     val myActivities by tutorViewModel.myActivities.collectAsStateWithLifecycle()
@@ -181,7 +186,11 @@ fun TutorDashboardContent(
                     items(myActivities) { activity ->
                         ActivityCard(
                             activity = activity,
-                            onUpdate = {
+                            onClick = {
+                                activitiesViewModel.addActivityToCache(activity)
+                                mainNavController.navigate("activityDetail/${activity.id}")
+                            },
+                            onEdit = {
                                 // Use mainNavController to navigate outside
                                 mainNavController.navigate("create_activity?activityId=${activity.id}")
                             },
@@ -209,40 +218,88 @@ fun TutorDashboardContent(
  * A Composable card that displays a tutor's activity and provides update/delete actions.
  */
 @Composable
-fun ActivityCard(activity: Activity, onUpdate: () -> Unit, onDelete: () -> Unit) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+fun ActivityCard(
+    activity: Activity,
+    onClick: () -> Unit,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit
+) {
+    var showMenu by remember { mutableStateOf(false) }
+
+    Card(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth()
+    ) {
         Row(
-            modifier = Modifier.padding(start = 16.dp, top = 16.dp, bottom = 8.dp, end = 8.dp),
+            modifier = Modifier.padding(16.dp),
             verticalAlignment = Alignment.Top
         ) {
-            // Column for text content
             Column(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                Text(activity.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                Text("Subject: ${activity.subject}", style = MaterialTheme.typography.bodyMedium)
-                activity.pricing?.let {
-                    Text("Price: ${it.price} ${it.currency}", style = MaterialTheme.typography.bodyMedium)
-                }
                 Text(
-                    text = if (activity.isPublic == true) "Status: Public" else "Status: Draft",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = if (activity.isPublic == true) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    activity.title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
                 )
-            }
-            // Column for action buttons
-            Column {
-                IconButton(onClick = onUpdate, modifier = Modifier.size(36.dp)) {
-                    Icon(Icons.Default.Edit, contentDescription = "Edit Activity")
+                Text(
+                    "Subject: ${activity.subject}",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                activity.pricing?.let {
+                    Text(
+                        "₹${it.price}",
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
-                IconButton(onClick = onDelete, modifier = Modifier.size(36.dp)) {
-                    Icon(Icons.Default.Delete, contentDescription = "Delete Activity", tint = MaterialTheme.colorScheme.error)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    AssistChip(
+                        onClick = { },
+                        label = { Text(activity.mode) }
+                    )
+                    AssistChip(
+                        onClick = { },
+                        label = { Text(activity.difficulty ?: "N/A") }
+                    )
+                }
+            }
+
+            Box {
+                IconButton(onClick = { showMenu = true }) {
+                    Icon(Icons.Default.MoreVert, "Menu")
+                }
+
+                DropdownMenu(
+                    expanded = showMenu,
+                    onDismissRequest = { showMenu = false }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("Edit") },
+                        onClick = {
+                            showMenu = false
+                            onEdit()
+                        },
+                        leadingIcon = { Icon(Icons.Default.Edit, null) }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Delete") },
+                        onClick = {
+                            showMenu = false
+                            onDelete()
+                        },
+                        leadingIcon = {
+                            Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error)
+                        }
+                    )
                 }
             }
         }
     }
 }
+
 
 /**
  * A confirmation dialog for deleting an activity.

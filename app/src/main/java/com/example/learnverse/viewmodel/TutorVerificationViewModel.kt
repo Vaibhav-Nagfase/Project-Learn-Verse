@@ -1,3 +1,4 @@
+// TutorVerificationViewModel.kt
 package com.example.learnverse.viewmodel
 
 import android.app.Application
@@ -17,7 +18,6 @@ import kotlinx.coroutines.launch
 import java.io.File
 import java.io.FileOutputStream
 
-// The sealed class UI state remains unchanged.
 sealed class VerificationUiState {
     data object Idle : VerificationUiState()
     data object Loading : VerificationUiState()
@@ -25,20 +25,25 @@ sealed class VerificationUiState {
     data class Error(val message: String) : VerificationUiState()
 }
 
-// The AuthRepository dependency has been removed from the constructor.
 class TutorVerificationViewModel(
     application: Application,
     private val tutorRepository: TutorRepository
 ) : AndroidViewModel(application) {
 
-    // --- State for the form fields (Unchanged) ---
+    // Form fields
     var fullName by mutableStateOf("")
     var phone by mutableStateOf("")
+    var bio by mutableStateOf("")
+    var qualifications by mutableStateOf("")
+    var experience by mutableStateOf("")
+    var specializations by mutableStateOf("")
     var termsAccepted by mutableStateOf(false)
+
+    // File URIs
+    var profilePictureUri by mutableStateOf<Uri?>(null)
     var idDocumentUri by mutableStateOf<Uri?>(null)
     var certificateUri by mutableStateOf<Uri?>(null)
 
-    // --- State for the overall UI (Unchanged) ---
     private val _uiState = MutableStateFlow<VerificationUiState>(VerificationUiState.Idle)
     val uiState: StateFlow<VerificationUiState> = _uiState.asStateFlow()
 
@@ -46,46 +51,56 @@ class TutorVerificationViewModel(
         viewModelScope.launch {
             _uiState.value = VerificationUiState.Loading
 
-            // --- 1. Validation (Unchanged) ---
-            if (fullName.isBlank() || phone.isBlank() || idDocumentUri == null || certificateUri == null) {
-                _uiState.value = VerificationUiState.Error("Please fill all fields and select both documents.")
+            // Validation
+            if (fullName.isBlank() || phone.isBlank() || bio.isBlank() ||
+                qualifications.isBlank() || experience.isBlank() || specializations.isBlank() ||
+                profilePictureUri == null || idDocumentUri == null || certificateUri == null) {
+                _uiState.value = VerificationUiState.Error("Please fill all required fields and select all documents.")
                 return@launch
             }
+
             if (!termsAccepted) {
                 _uiState.value = VerificationUiState.Error("You must accept the terms and conditions.")
                 return@launch
             }
 
-            // --- 2. Get Token logic has been completely removed. ---
-
-            // --- 3. Convert URIs to Files (Unchanged) ---
             val context = getApplication<Application>().applicationContext
+
+            // Convert URIs to files
+            val profilePictureMimeType = context.contentResolver.getType(profilePictureUri!!)
             val idDocumentMimeType = context.contentResolver.getType(idDocumentUri!!)
             val certificateMimeType = context.contentResolver.getType(certificateUri!!)
 
-            if (idDocumentMimeType == null || certificateMimeType == null) {
-                _uiState.value = VerificationUiState.Error("Could not determine file type. Please select a different file.")
+            if (profilePictureMimeType == null || idDocumentMimeType == null || certificateMimeType == null) {
+                _uiState.value = VerificationUiState.Error("Could not determine file types. Please select different files.")
                 return@launch
             }
 
-            val idDocumentFileName = getFileName(context, idDocumentUri!!)
-            val certificateFileName = getFileName(context, certificateUri!!)
-            val idDocumentFile = uriToFile(context, idDocumentUri!!, idDocumentFileName)
-            val certificateFile = uriToFile(context, certificateUri!!, certificateFileName)
+            val profilePictureFile = uriToFile(context, profilePictureUri!!, getFileName(context, profilePictureUri!!))
+            val idDocumentFile = uriToFile(context, idDocumentUri!!, getFileName(context, idDocumentUri!!))
+            val certificateFile = uriToFile(context, certificateUri!!, getFileName(context, certificateUri!!))
 
-            if (idDocumentFile == null || certificateFile == null) {
+            if (profilePictureFile == null || idDocumentFile == null || certificateFile == null) {
                 _uiState.value = VerificationUiState.Error("Failed to process files. Please try again.")
                 return@launch
             }
 
-            // --- 4. Call the Repository ---
             try {
-                // The 'token' parameter has been removed from the repository call.
+                // Split comma-separated strings into lists
+                val qualificationsList = qualifications.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+                val specializationsList = specializations.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+
                 tutorRepository.registerTutor(
                     email = userEmail,
                     fullName = fullName,
                     phone = phone,
+                    bio = bio,
+                    qualifications = qualificationsList,
+                    experience = experience,
+                    specializations = specializationsList,
                     termsAccepted = termsAccepted,
+                    profilePictureFile = profilePictureFile,
+                    profilePictureMimeType = profilePictureMimeType,
                     idDocumentFile = idDocumentFile,
                     idDocumentMimeType = idDocumentMimeType,
                     certificateFile = certificateFile,
@@ -98,7 +113,6 @@ class TutorVerificationViewModel(
         }
     }
 
-    // Helper functions (uriToFile, getFileName) remain unchanged.
     private fun uriToFile(context: Context, uri: Uri, fileName: String): File? {
         return try {
             val inputStream = context.contentResolver.openInputStream(uri)
@@ -136,6 +150,6 @@ class TutorVerificationViewModel(
                 result = result?.substring(cut!! + 1)
             }
         }
-        return result ?: "temp_file_with_unknown_ext"
+        return result ?: "temp_file"
     }
 }

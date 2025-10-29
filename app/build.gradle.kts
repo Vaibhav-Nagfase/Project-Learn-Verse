@@ -58,15 +58,28 @@ dependencies {
     implementation("io.coil-kt:coil-compose:2.6.0")
 
 
-    // --- Add Media3 Dependencies ---
-    val media3Version = "1.3.1"
-    implementation("androidx.media3:media3-exoplayer:$media3Version")
-    implementation("androidx.media3:media3-ui:$media3Version")
-    implementation("androidx.media3:media3-common:$media3Version")
+//    // --- Add Media3 Dependencies ---
+//    val media3Version = "1.3.1"
+//    implementation("androidx.media3:media3-exoplayer:$media3Version")
+//    implementation("androidx.media3:media3-ui:$media3Version")
+//    implementation("androidx.media3:media3-common:$media3Version")
+
+    // Media3 ExoPlayer (Modern video player)
+    implementation("androidx.media3:media3-exoplayer:1.8.0")
+    implementation("androidx.media3:media3-ui:1.8.0")
+    implementation("androidx.media3:media3-common:1.8.0")
 
     implementation("io.noties.markwon:core:4.6.2")
     implementation("io.noties.markwon:ext-strikethrough:4.6.2")
     implementation("io.noties.markwon:linkify:4.6.2")
+
+    // Image loading
+    implementation("io.coil-kt:coil-compose:2.7.0")
+
+    // Accompanist for tabs
+    implementation("com.google.accompanist:accompanist-pager:0.36.0")
+    implementation("com.google.accompanist:accompanist-pager-indicators:0.36.0")
+
 
 
     // --- DEPENDENCY CLEANUP ---

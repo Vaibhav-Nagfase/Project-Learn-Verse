@@ -1,6 +1,9 @@
 package com.example.learnverse.data.remote
 
 import com.example.learnverse.data.model.*
+import com.example.learnverse.data.model.profile.ProfileResponse
+import com.example.learnverse.data.model.profile.UserProfile
+import com.example.learnverse.data.model.profile.UserProfileRequest
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.GET
@@ -84,15 +87,20 @@ interface ApiService {
 
     // NEW: Submit tutor verification request with documents
     @Multipart
-    @POST("api/tutor-verification/register")
+    @POST("api/tutor-verification/submit")
     suspend fun registerTutor(
         @Part("email") email: RequestBody,
         @Part("fullName") fullName: RequestBody,
         @Part("phone") phone: RequestBody,
+        @Part("bio") bio: RequestBody,
+        @Part("qualifications") qualifications: List<String>,
+        @Part("experience") experience: RequestBody,
+        @Part("specializations") specializations: List<String>,
         @Part("termsAccepted") termsAccepted: RequestBody,
+        @Part profilePicture: MultipartBody.Part,
         @Part idDocument: MultipartBody.Part,
         @Part certificate: MultipartBody.Part
-    ): Response<Unit> // Assuming a simple success/fail response
+    ): Response<Unit>
 
     // NEW: Check the verification status
     @GET("api/tutor-verification/status/{email}")
@@ -112,7 +120,7 @@ interface ApiService {
         @Path("verificationId") verificationId: String
     ): Response<Unit> // Assuming a simple success response
 
-    @POST("api/tutor-verification/admin/reject/{verificationId}")
+    @PUT("api/tutor-verification/admin/reject/{verificationId}")
     suspend fun rejectVerification(
         @Path("verificationId") verificationId: String,
         @Query("reason") reason: String
@@ -124,10 +132,10 @@ interface ApiService {
 
     // --- ENROLLMENT ENDPOINTS ---
 
-    @POST("api/enrollments/enroll")
-    suspend fun enrollInActivity(
-        @Body request: EnrollmentRequest
-    ): Response<Unit> // Assuming we don't need the response body for now
+//    @POST("api/enrollments/enroll")
+//    suspend fun enrollInActivity(
+//        @Body request: EnrollmentRequest
+//    ): Response<Unit> // Assuming we don't need the response body for now
 
     @GET("api/enrollments/my-enrollments")
     suspend fun getMyEnrollments(): Response<MyEnrollmentsResponse>
@@ -159,14 +167,16 @@ interface ApiService {
 
     // --- NEW PROFILE ENDPOINTS ---
 
+    @GET("api/user/profile/get_profile")
+    suspend fun getProfile(): Response<ProfileResponse>
+
     @POST("api/user/profile/setup")
     suspend fun setupProfile(@Body profileRequest: UserProfileRequest): Response<UserProfile>
 
-    @GET("api/user/profile/get_profile")
-    suspend fun getProfile(): Response<UserProfile>
-
     @PUT("api/user/profile/update_profile")
     suspend fun updateProfile(@Body profileRequest: UserProfileRequest): Response<UserProfile>
+
+
 
 
     // --- Community Post Endpoints ---
@@ -236,4 +246,144 @@ interface ApiService {
 
     @GET("api/community/follow/stats/{userId}")
     suspend fun getFollowStats(@Path("userId") userId: String): Response<FollowStats>
+
+
+    /**
+     * Upload banner for activity
+     */
+    @Multipart
+    @PUT("api/activities/tutor/activities/{activityId}/banner")
+    suspend fun uploadBanner(
+        @Path("activityId") activityId: String,
+        @Part banner: MultipartBody.Part
+    ): Response<Map<String, Any>>
+
+
+    /**
+     * Add review to activity
+     */
+    @POST("api/activities/{activityId}/reviews")
+    suspend fun addReview(
+        @Path("activityId") activityId: String,
+        @Body request: CreateReviewRequest
+    ): Response<AddReviewResponse>
+
+    /**
+     * Get all reviews for an activity (PUBLIC)
+     */
+    @GET("api/activities/{activityId}/reviews")
+    suspend fun getActivityReviews(
+        @Path("activityId") activityId: String,
+        @Query("page") page: Int = 0,
+        @Query("size") size: Int = 10
+    ): Response<ReviewsResponse>
+
+    /**
+     * Update own review
+     */
+    @PUT("api/reviews/{reviewId}")
+    suspend fun updateReview(
+        @Path("reviewId") reviewId: String,
+        @Body request: UpdateReviewRequest
+    ): Response<UpdateReviewResponse>
+
+    /**
+     * Delete own review
+     */
+    @DELETE("api/reviews/{reviewId}")
+    suspend fun deleteReview(
+        @Path("reviewId") reviewId: String
+    ): Response<DeleteReviewResponse>
+
+    /**
+     * Get user's own reviews
+     */
+    @GET("api/reviews/my-reviews")
+    suspend fun getMyReviews(): Response<MyReviewsResponse>
+
+    /**
+     * Check if user has reviewed an activity
+     */
+    @GET("api/activities/{activityId}/reviews/check")
+    suspend fun checkUserReview(
+        @Path("activityId") activityId: String
+    ): Response<CheckReviewResponse>
+
+    /**
+     * Get single activity details
+     */
+    @GET("api/activities/{activityId}")
+    suspend fun getActivityById(
+        @Path("activityId") activityId: String
+    ): Response<Activity>
+
+    /**
+     * Enroll in activity
+     */
+    @POST("api/enrollments/enroll")
+    suspend fun enrollInActivity(
+        @Body enrollmentData: @JvmSuppressWildcards Map<String, String>
+    ): Response<Map<String, Any>>
+
+    /**
+     * ✅ Upload video to activity
+     */
+    @Multipart
+    @POST("api/tutor/activities/{activityId}/videos")
+    suspend fun uploadVideo(
+        @Path("activityId") activityId: String,
+        @Part video: MultipartBody.Part,
+        @Part("title") title: RequestBody,
+        @Part("description") description: RequestBody?,
+        @Part("order") order: RequestBody?
+    ): Response<Map<String, Any>>
+
+    /**
+     * ✅ Delete video from activity
+     */
+    @DELETE("api/tutor/activities/{activityId}/videos/{videoId}")
+    suspend fun deleteVideo(
+        @Path("activityId") activityId: String,
+        @Path("videoId") videoId: String
+    ): Response<Unit>
+
+    /**
+     * ✅ Add/Update meeting link
+     */
+    @POST("api/tutor/activities/{activityId}/meeting")
+    suspend fun addOrUpdateMeetingLink(
+        @Path("activityId") activityId: String,
+        @Body meetingData: Map<String, String>
+    ): Response<Map<String, Any>>
+
+    /**
+     * ✅ Delete meeting link
+     */
+    @DELETE("api/tutor/activities/{activityId}/meeting")
+    suspend fun deleteMeetingLink(
+        @Path("activityId") activityId: String
+    ): Response<Unit>
+
+    /**
+     * ✅ Get activity videos (for enrolled users)
+     */
+    @GET("api/activities/{activityId}/videos")
+    suspend fun getActivityVideos(
+        @Path("activityId") activityId: String
+    ): Response<List<Activity.VideoContent.Video>>
+
+    /**
+     * ✅ Get activity meeting link (for enrolled users)
+     */
+    @GET("api/activities/{activityId}/meeting")
+    suspend fun getActivityMeeting(
+        @Path("activityId") activityId: String
+    ): Response<Activity.VideoContent>
+
+    /**
+     * Get complete home feed
+     */
+    @GET("api/activities/home-feed")
+    suspend fun getHomeFeed(): Response<HomeFeedResponse>
+
 }

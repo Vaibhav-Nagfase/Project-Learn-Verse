@@ -5,6 +5,7 @@ import com.example.learnverse.data.model.*
 import com.example.learnverse.data.remote.ApiService
 import com.example.learnverse.utils.UserPreferences
 import kotlinx.coroutines.flow.Flow
+import retrofit2.Response
 
 class AuthRepository(private val api: ApiService, private val context: Context) {
 
@@ -82,5 +83,9 @@ class AuthRepository(private val api: ApiService, private val context: Context) 
 
     fun getInterestsSkippedFlag(): Flow<Boolean> {
         return UserPreferences.getInterestsSkippedFlag(context)
+    }
+
+    suspend fun getTutorVerificationStatus(email: String): Response<TutorVerificationStatus> {
+        return api.getTutorVerificationStatus(email)
     }
 }

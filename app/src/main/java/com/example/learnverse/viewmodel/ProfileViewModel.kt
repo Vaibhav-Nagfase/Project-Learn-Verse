@@ -5,8 +5,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.learnverse.data.model.UserProfile
-import com.example.learnverse.data.model.UserProfileRequest
+import com.example.learnverse.data.model.profile.UserProfile
+import com.example.learnverse.data.model.profile.UserProfileRequest
 import com.example.learnverse.data.repository.ProfileRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -27,6 +27,8 @@ class ProfileViewModel(private val repository: ProfileRepository) : ViewModel() 
     var firstName by mutableStateOf("")
     var lastName by mutableStateOf("")
     var location by mutableStateOf("")
+    var age by mutableStateOf("")
+    var gender by mutableStateOf("")
     var educationLevel by mutableStateOf("UNDERGRADUATE")
     var currentRole by mutableStateOf("")
     var interests by mutableStateOf("")
@@ -42,19 +44,22 @@ class ProfileViewModel(private val repository: ProfileRepository) : ViewModel() 
     val educationOptions = listOf("HIGH_SCHOOL", "UNDERGRADUATE", "GRADUATE", "POST_GRADUATE", "OTHER")
     val communicationStyleOptions = listOf("FORMAL", "FRIENDLY", "DIRECT")
 
-    /**
-     * Loads the user's existing profile into the form fields.
-     */
+    // ProfileViewModel.kt - Update loadProfile method
     fun loadProfile() {
         viewModelScope.launch {
             _uiState.value = UiState.Loading
             try {
                 val profile = repository.getProfile()
-                if (profile != null) {
 
+                _userProfile.value = profile
+
+                if (profile != null) {
+                    // Load form fields
                     firstName = profile.firstName ?: ""
                     lastName = profile.lastName ?: ""
                     location = profile.location ?: ""
+                    age = profile.age?.toString() ?: ""
+                    gender = profile.gender ?: ""
                     educationLevel = profile.currentEducationLevel ?: "UNDERGRADUATE"
                     currentRole = profile.currentRole ?: ""
                     interests = profile.interests?.joinToString(", ") ?: ""
@@ -64,10 +69,8 @@ class ProfileViewModel(private val repository: ProfileRepository) : ViewModel() 
                     communicationStyle = profile.communicationStyle ?: "FRIENDLY"
                     wantsStepByStepGuidance = profile.wantsStepByStepGuidance ?: true
                     isEditMode = true
-
-
                 } else {
-                    isEditMode = false // No profile exists, we are in setup mode
+                    isEditMode = false
                 }
                 _uiState.value = UiState.Idle
             } catch (e: Exception) {
@@ -76,9 +79,7 @@ class ProfileViewModel(private val repository: ProfileRepository) : ViewModel() 
         }
     }
 
-    /**
-     * Saves the profile (either creates a new one or updates an existing one).
-     */
+    // ProfileViewModel.kt - Update saveProfile method
     fun saveProfile() {
         viewModelScope.launch {
             _uiState.value = UiState.Loading
@@ -86,6 +87,8 @@ class ProfileViewModel(private val repository: ProfileRepository) : ViewModel() 
                 firstName = firstName,
                 lastName = lastName,
                 location = location,
+                age = age.toIntOrNull(),
+                gender = gender,
                 currentEducationLevel = educationLevel,
                 currentRole = currentRole,
                 interests = interests.split(",").map { it.trim() }.filter { it.isNotEmpty() },
@@ -98,10 +101,12 @@ class ProfileViewModel(private val repository: ProfileRepository) : ViewModel() 
 
             try {
                 if (isEditMode) {
-                    repository.updateProfile(profileRequest)
+                    val updatedProfile = repository.updateProfile(profileRequest)
+                    _userProfile.value = updatedProfile // ✅ Update state
                     _uiState.value = UiState.Success("Profile updated successfully!")
                 } else {
-                    repository.setupProfile(profileRequest)
+                    val newProfile = repository.setupProfile(profileRequest)
+                    _userProfile.value = newProfile // ✅ Update state
                     _uiState.value = UiState.Success("Profile created successfully!")
                 }
             } catch (e: Exception) {

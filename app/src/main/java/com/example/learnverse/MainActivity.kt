@@ -8,9 +8,19 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.annotation.RequiresApi
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.Icons
+import androidx.compose.material3.Button
+import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -21,7 +31,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -50,6 +62,8 @@ import com.example.learnverse.ui.screen.tutor.CreateActivityScreen
 import com.example.learnverse.ui.screen.tutor.TutorDashboardScreen
 import com.example.learnverse.ui.screen.tutor.TutorProfileScreen
 import com.example.learnverse.ui.screen.tutor.TutorVerificationScreen
+import com.example.learnverse.ui.screen.tutor.VerificationStatusScreen
+import com.example.learnverse.ui.screen.video.VideoPlayerScreen
 import com.example.learnverse.ui.theme.LearnVerseTheme
 import com.example.learnverse.viewmodel.*
 
@@ -153,7 +167,7 @@ fun LearnVerseApp() {
                     AdminNavGraph(authViewModel = authViewModel, adminViewModel = adminViewModel)
                 }
                 "TUTOR" -> {
-                    TutorNavGraph(authViewModel = authViewModel, tutorViewModel = tutorViewModel, communityViewModel = communityViewModel)
+                    TutorNavGraph(authViewModel = authViewModel, tutorViewModel = tutorViewModel, communityViewModel = communityViewModel, activitiesViewModel = activitiesViewModel)
                 }
                 else -> {
                     val startDestination = if (authViewModel.navigateToFeedAfterOnboarding || authViewModel.interestSelectionCancelled) "home" else "home"
@@ -240,9 +254,26 @@ fun MainNavGraph(
             ActivityDetailScreen(
                 activityId = backStackEntry.arguments?.getString("activityId") ?: "",
                 activitiesViewModel = activitiesViewModel,
+                authViewModel = authViewModel,
                 navController = navController
             )
         }
+
+        composable(
+            route = "video_player/{activityId}/{videoId}",
+            arguments = listOf(
+                navArgument("activityId") { type = NavType.StringType },
+                navArgument("videoId") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            VideoPlayerScreen(
+                activityId = backStackEntry.arguments?.getString("activityId") ?: "",
+                videoId = backStackEntry.arguments?.getString("videoId") ?: "",
+                activitiesViewModel = activitiesViewModel,
+                navController = navController
+            )
+        }
+
         composable("tutorVerification") {
             TutorVerificationScreen(navController, tutorVerificationViewModel, authViewModel)
         }
@@ -258,10 +289,13 @@ fun MainNavGraph(
             ProfileScreen(navController, profileViewModel, authViewModel)
         }
         composable("my_profile") {
-            ProfileScreen(navController, profileViewModel, authViewModel, isUpdating = true)
+            ProfileScreen(navController, profileViewModel, authViewModel)
         }
         composable("chat") {
             ChatScreen(navController, chatViewModel)
+        }
+        composable("verificationStatus") {
+            VerificationStatusScreen(navController, authViewModel)
         }
 
         composable(
@@ -273,7 +307,8 @@ fun MainNavGraph(
                 TutorProfileScreen(
                     tutorId = tutorIdArg,
                     navController = navController,
-                    authViewModel = authViewModel         // Pass authViewModel
+                    authViewModel = authViewModel, // Pass authViewModel
+                    activitiesViewModel = activitiesViewModel
                 )
             } else {
                 Text("Error: Tutor ID missing") // Handle error
@@ -291,6 +326,7 @@ fun MainNavGraph(
 fun TutorNavGraph(
     authViewModel: AuthViewModel,
     tutorViewModel: TutorViewModel,
+    activitiesViewModel: ActivitiesViewModel,
     communityViewModel: CommunityViewModel // Add CommunityViewModel parameter
 ) {
     val navController = rememberNavController() // This is the MAIN NavController for this graph
@@ -300,9 +336,20 @@ fun TutorNavGraph(
                 mainNavController = navController, // Pass the main controller
                 authViewModel = authViewModel,
                 tutorViewModel = tutorViewModel,
+                activitiesViewModel = activitiesViewModel,
                 communityViewModel = communityViewModel // Pass it down
             )
         }
+
+        composable("activityDetail/{activityId}") { backStackEntry ->
+            ActivityDetailScreen(
+                activityId = backStackEntry.arguments?.getString("activityId") ?: "",
+                activitiesViewModel = activitiesViewModel,
+                authViewModel = authViewModel,
+                navController = navController
+            )
+        }
+
         // Keep the route for creating/editing activities accessible globally
         composable(
             route = "create_activity?activityId={activityId}",
@@ -315,6 +362,111 @@ fun TutorNavGraph(
                 activityId = backStackEntry.arguments?.getString("activityId")
             )
         }
+
+        // ✅ ADD THIS - Video Player Route
+        composable(
+            route = "video_player/{activityId}/{videoId}",
+            arguments = listOf(
+                navArgument("activityId") { type = NavType.StringType },
+                navArgument("videoId") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val activityId = backStackEntry.arguments?.getString("activityId") ?: ""
+            val videoId = backStackEntry.arguments?.getString("videoId") ?: ""
+
+            // Temporary placeholder - replace with actual VideoPlayerScreen
+            Box(
+                modifier = Modifier.fillMaxSize().background(Color.Black),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Icon(
+                        Icons.Default.PlayCircle,
+                        contentDescription = null,
+                        modifier = Modifier.size(80.dp),
+                        tint = Color.White
+                    )
+                    Text(
+                        "Video Player",
+                        style = MaterialTheme.typography.titleLarge,
+                        color = Color.White
+                    )
+                    Text(
+                        "Activity: $activityId",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.White
+                    )
+                    Text(
+                        "Video: $videoId",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.White
+                    )
+                    Spacer(Modifier.height(16.dp))
+                    Button(onClick = { navController.navigateUp() }) {
+                        Text("Close Player")
+                    }
+                }
+            }
+        }
+
+        composable("upload_video/{activityId}") { backStackEntry ->
+            val activityId = backStackEntry.arguments?.getString("activityId") ?: ""
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("Upload Video Screen", style = MaterialTheme.typography.titleLarge)
+                    Spacer(Modifier.height(16.dp))
+                    Text("Activity ID: $activityId")
+                    Spacer(Modifier.height(16.dp))
+                    Button(onClick = { navController.navigateUp() }) {
+                        Text("Go Back")
+                    }
+                }
+            }
+        }
+
+        composable("add_meeting/{activityId}") { backStackEntry ->
+            val activityId = backStackEntry.arguments?.getString("activityId") ?: ""
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("Add Meeting Link Screen", style = MaterialTheme.typography.titleLarge)
+                    Spacer(Modifier.height(16.dp))
+                    Text("Activity ID: $activityId")
+                    Spacer(Modifier.height(16.dp))
+                    Button(onClick = { navController.navigateUp() }) {
+                        Text("Go Back")
+                    }
+                }
+            }
+        }
+
+        composable("edit_meeting/{activityId}") { backStackEntry ->
+            val activityId = backStackEntry.arguments?.getString("activityId") ?: ""
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("Edit Meeting Link Screen", style = MaterialTheme.typography.titleLarge)
+                    Spacer(Modifier.height(16.dp))
+                    Text("Activity ID: $activityId")
+                    Spacer(Modifier.height(16.dp))
+                    Button(onClick = { navController.navigateUp() }) {
+                        Text("Go Back")
+                    }
+                }
+            }
+        }
+
+
         // --- ADD Route for Create Post ---
         composable(
             route = "createPost?postId={postId}",
@@ -351,7 +503,8 @@ fun TutorNavGraph(
                 TutorProfileScreen(
                     tutorId = tutorIdArg,
                     navController = navController,
-                    authViewModel = authViewModel
+                    authViewModel = authViewModel,
+                    activitiesViewModel = activitiesViewModel
                 )
             } else { Text("Error: Tutor ID missing") }
         }

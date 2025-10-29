@@ -10,6 +10,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.learnverse.data.model.Activity
+import com.example.learnverse.ui.screen.search.ActivityResultCard
 import com.example.learnverse.viewmodel.ActivitiesViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -42,7 +43,7 @@ fun MyCoursesScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 items(enrolledActivities) { activity ->
-                    EnrolledActivityCard(activity = activity) {
+                    ActivityResultCard(activity = activity) {
                         navController.navigate("activityDetail/${activity.id}")
                     }
                 }
@@ -51,17 +52,17 @@ fun MyCoursesScreen(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun EnrolledActivityCard(activity: Activity, onClick: () -> Unit) {
-    Card(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(Modifier.padding(16.dp)) {
-            Text(activity.title, style = MaterialTheme.typography.titleMedium)
-            Text("by ${activity.tutorName}", style = MaterialTheme.typography.bodySmall)
-            // TODO: You could add a progress bar here later
-        }
-    }
-}
+//@OptIn(ExperimentalMaterial3Api::class)
+//@Composable
+//fun EnrolledActivityCard(activity: Activity, onClick: () -> Unit) {
+//    Card(
+//        onClick = onClick,
+//        modifier = Modifier.fillMaxWidth()
+//    ) {
+//        Column(Modifier.padding(16.dp)) {
+//            Text(activity.title, style = MaterialTheme.typography.titleMedium)
+//            Text("by ${activity.tutorName}", style = MaterialTheme.typography.bodySmall)
+//            // TODO: You could add a progress bar here later
+//        }
+//    }
+//}

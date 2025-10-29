@@ -75,15 +75,12 @@ fun DiscoverScreen(
         },
         bottomBar = {
             // Use the same BottomNavigationBar as HomeScreen
-            BottomNavigationBar(navController = navController)
+            if (userRole == "USER") {
+                BottomNavigationBar(navController = navController)
+            }
         },
         floatingActionButton = {
-            // Show FAB only for Tutors
-            if (userRole == "TUTOR") {
-                FloatingActionButton(onClick = { navController.navigate("createPost") }) {
-                    Icon(Icons.Default.Add, contentDescription = "Create Post")
-                }
-            }
+
         },
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { paddingValues ->

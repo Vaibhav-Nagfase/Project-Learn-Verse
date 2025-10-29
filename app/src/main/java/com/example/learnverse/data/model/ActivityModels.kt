@@ -1,35 +1,195 @@
 package com.example.learnverse.data.model
 
 import com.google.gson.annotations.SerializedName
+import java.util.Date
 
 /**
  * Represents a full Activity object as received from the server.
- * This is used for displaying activities in lists, feeds, and detail screens.
+ * This matches the backend MongoDB Activity document structure.
  */
 data class Activity(
     val id: String,
-    val tutorId: String?, // Added to link back to the tutor
+    val tutorId: String,
     val tutorName: String,
     val title: String,
     val description: String,
     val subject: String,
-    val mode: String,
-    val difficulty: String,
     val classType: String?,
     val activityType: String?,
+    val mode: String,
+    val bannerImageUrl: String?,
+    val location: Location?,
+    val videoContent: VideoContent?,
+    val suitableAgeGroup: SuitableAgeGroup?,
+    val difficulty: String?,
+    val prerequisites: List<String>?,
+    val instructorDetails: InstructorDetails?,
+    val reviews: Reviews?,
+    val pricing: PricingInfo?,
+    @SerializedName("duration")
+    val duration: DurationInfo?,
+    val schedule: Schedule?,
+    val enrollmentInfo: EnrollmentInfo?,
+    val demoAvailable: Boolean?,
+    val demoDetails: DemoDetails?,
+    val contactInfo: ContactInfo?,
     val tags: List<String>?,
     val isActive: Boolean?,
     val isPublic: Boolean?,
-    @SerializedName("duration")
-    val durationInfo: DurationInfo?,
-    @SerializedName("enrollmentInfo")
-    val enrollmentInfo: EnrollmentInfo?,
-    val pricing: PricingInfo? // Renamed to avoid confusion with the creation model
-)
+    val featured: Boolean?,
+    val createdAt: Date?,
+    val updatedAt: Date?,
+    val publishedAt: Date?
+) {
+    // === Nested Data Classes ===
+
+    data class Location(
+        val address: String?,
+        val city: String?,
+        val state: String?,
+        val coordinates: Coordinates?,
+        val proximityRadius: Int?,
+        val landmark: String?,
+        val facilities: List<String>?
+    ) {
+        data class Coordinates(
+            val type: String,
+            val coordinates: List<Double>
+        )
+    }
+
+    data class VideoContent(
+        val platform: String?,
+        val meetingLink: String?,
+        val meetingId: String?,
+        val passcode: String?,
+        val recordedVideos: List<Video>?,
+        val totalVideoCount: Int?,
+        val totalVideoDuration: Int?,
+        val streamingQuality: List<String>?,
+        val downloadAllowed: Boolean?,
+        val offlineViewing: Boolean?,
+        val subtitlesAvailable: Boolean?,
+        val languages: List<String>?
+    ) {
+        data class Video(
+            val videoId: String,
+            val title: String,
+            val description: String?,
+            val duration: Int?,
+            val videoUrl: String,
+            val thumbnailUrl: String?,
+            val order: Int?,
+            val isPreview: Boolean?,
+            val resources: List<Resource>?
+        ) {
+            data class Resource(
+                val type: String,
+                val title: String,
+                val url: String
+            )
+        }
+    }
+
+    data class SuitableAgeGroup(
+        val minAge: Int?,
+        val maxAge: Int?,
+        val ageDescription: String?
+    )
+
+    data class InstructorDetails(
+        val bio: String?,
+        val qualifications: List<String>?,
+        val experience: String?,
+        val specializations: List<String>?,
+        val profileImage: String?,
+        val socialProof: SocialProof?
+    ) {
+        data class SocialProof(
+            val studentsCount: Int?,
+            val totalStudentsTaught: Int?,
+            val coursesCount: Int?,
+            val yearsTeaching: Int?
+        )
+    }
+
+    data class Reviews(
+        val averageRating: Double?,
+        val totalReviews: Int?,
+        val ratingDistribution: Map<String, Int>?,
+        val recentReviews: List<RecentReview>?
+    ) {
+        data class RecentReview(
+            val studentName: String,
+            val rating: Int,
+            val comment: String?,
+            val date: String
+        )
+    }
+
+    data class PricingInfo(
+        val price: Int?,
+        val currency: String?,
+        val discountPrice: Int?,
+        val priceType: String?,
+        val installmentAvailable: Boolean?,
+        val freeTrialDays: Int?,
+        val moneyBackGuarantee: Int?
+    )
+
+    data class DurationInfo(
+        val totalDuration: Int?,
+        val estimatedDuration: Int?,
+        val totalSessions: Int?,
+        val durationDescription: String?,
+        val lifetimeAccess: Boolean?
+    )
+
+    data class Schedule(
+        val timingsPerWeek: Int?,
+        val sessionDays: List<String>?,
+        val sessionTime: String?,
+        val timezone: String?,
+        val startDate: String?,
+        val endDate: String?,
+        val flexibleScheduling: Boolean?,
+        val selfPaced: Boolean?,
+        val accessDuration: Int?,
+        val completionDeadline: String?
+    )
+
+    data class EnrollmentInfo(
+        val enrolledCount: Int?,
+        val maxCapacity: Int?,
+        val waitlistCount: Int?,
+        val enrollmentStatus: String?,
+        val autoEnrollment: Boolean?
+    )
+
+    data class DemoDetails(
+        val demoVideoUrl: String?,
+        val demoSessionDate: String?,
+        val demoDuration: Int?,
+        val freeTrial: Boolean?,
+        val trialDuration: Int?
+    )
+
+    data class ContactInfo(
+        val enrollmentLink: String?,
+        val whatsappNumber: String?,
+        val email: String?,
+        val socialLinks: SocialLinks?,
+        val supportHours: String?
+    ) {
+        data class SocialLinks(
+            val youtube: String?,
+            val instagram: String?
+        )
+    }
+}
 
 /**
  * Represents the specific JSON body required by the POST /api/activities/create endpoint.
- * Notice it has its own nested Pricing and Duration classes to perfectly match the request format.
  */
 data class CreateActivityRequest(
     val tutorId: String,
@@ -37,53 +197,54 @@ data class CreateActivityRequest(
     val title: String,
     val description: String,
     val subject: String,
-    val classType: String,
+    val classType: String?,
     val activityType: String,
     val mode: String,
     val difficulty: String,
-    val pricing: Pricing, // Nested class for creation
-    val duration: Duration, // Nested class for creation
+    val pricing: Pricing,
+    val suitableAgeGroup: SuitableAgeGroup?,
+    val prerequisites: List<String>?,
+    val duration: Duration,
+    val schedule: Schedule?,
+    val demoAvailable: Boolean?,
+    val demoDetails: DemoDetails?,
     val tags: List<String>,
     val isActive: Boolean,
-    val isPublic: Boolean
+    val isPublic: Boolean,
+    val featured: Boolean?
 ) {
-    // This nested class exactly matches the 'pricing' object in the creation JSON
     data class Pricing(
-        val price: Double,
+        val price: Int,
         val currency: String,
-        val priceType: String
+        val priceType: String,
+        val discountPrice: Int?,
+        val installmentAvailable: Boolean?
     )
 
-    // This nested class exactly matches the 'duration' object in the creation JSON
+    data class SuitableAgeGroup(
+        val minAge: Int,
+        val maxAge: Int,
+        val ageDescription: String?
+    )
+
     data class Duration(
-        val totalDuration: Int,
         val totalSessions: Int,
-        val durationDescription: String
+        val estimatedDuration: Int,
+        val durationDescription: String,
+        val lifetimeAccess: Boolean?
+    )
+
+    data class Schedule(
+        val selfPaced: Boolean?,
+        val accessDuration: Int?,
+        val flexibleScheduling: Boolean?
+    )
+
+    data class DemoDetails(
+        val freeTrial: Boolean?,
+        val trialDuration: Int?
     )
 }
-
-
-// --- HELPER DATA CLASSES FOR DISPLAYING AN ACTIVITY ---
-
-data class DurationInfo(
-    val totalDuration: Int?, // Made nullable for safety
-    val totalSessions: Int?, // Made nullable for safety
-    val durationDescription: String? // Made nullable for safety
-)
-
-data class EnrollmentInfo(
-    val enrolledCount: Int,
-    val maxCapacity: Int? // Made nullable for safety
-)
-
-// Renamed to PricingInfo to be distinct from the creation model's Pricing class
-data class PricingInfo(
-    val price: Double,
-    val currency: String,
-    val discountPrice: Double?,
-    val priceType: String?
-)
-
 
 // --- OTHER MODELS (Unchanged) ---
 
