@@ -2,6 +2,7 @@ package com.example.learnverse.utils
 
 import android.annotation.SuppressLint
 import android.app.Activity
+import android.content.pm.ActivityInfo
 import android.net.Uri
 import android.os.Build
 import androidx.activity.compose.BackHandler
@@ -21,8 +22,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.compose.ui.window.Dialog
 import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.media3.common.MediaItem
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
@@ -30,7 +32,7 @@ import androidx.media3.ui.PlayerView
 
 @OptIn(UnstableApi::class)
 @RequiresApi(Build.VERSION_CODES.R)
-@SuppressLint("WrongConstant")
+@SuppressLint("SourceLockedOrientationActivity")
 @Composable
 fun VideoPlayer(
     videoUrl: String,
@@ -43,9 +45,14 @@ fun VideoPlayer(
     // Track fullscreen state
     var isFullscreen by remember { mutableStateOf(false) }
 
+    // Remember original orientation
+    val originalOrientation = remember { activity?.requestedOrientation }
+
     // Create and remember ExoPlayer
     val exoPlayer = remember {
-        ExoPlayer.Builder(context).build()
+        ExoPlayer.Builder(context).build().apply {
+            playWhenReady = false // Don't auto-play
+        }
     }
 
     // Load video
@@ -55,27 +62,87 @@ fun VideoPlayer(
         exoPlayer.prepare()
     }
 
+    // Handle fullscreen mode changes
+    LaunchedEffect(isFullscreen) {
+        activity?.let { act ->
+            if (isFullscreen) {
+                // ✅ Force landscape and lock it
+                act.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+
+                val windowInsetsController = WindowCompat.getInsetsController(act.window, view)
+                windowInsetsController.apply {
+                    hide(WindowInsetsCompat.Type.systemBars())
+                    systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                }
+            } else {
+                // ✅ Return to portrait
+                act.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+
+                val windowInsetsController = WindowCompat.getInsetsController(act.window, view)
+                windowInsetsController.show(WindowInsetsCompat.Type.systemBars())
+            }
+        }
+    }
+
+
     // Release when composable leaves
     DisposableEffect(Unit) {
-        onDispose { exoPlayer.release() }
-    }
-
-    // Handle system UI visibility when fullscreen
-    LaunchedEffect(isFullscreen) {
-        val windowInsetsController = activity?.window?.let {
-            WindowCompat.getInsetsController(it, it.decorView)
-        }
-        windowInsetsController?.isAppearanceLightStatusBars = !isFullscreen
-        if (isFullscreen) {
-            windowInsetsController?.hide(android.view.WindowInsets.Type.systemBars())
-        } else {
-            windowInsetsController?.show(android.view.WindowInsets.Type.systemBars())
+        onDispose {
+            exoPlayer.release()
+            // Restore orientation on dispose
+            activity?.let { act ->
+                originalOrientation?.let { act.requestedOrientation = it }
+            }
         }
     }
 
-    // Normal mode
+    // ✅ Normal mode (portrait)
     if (!isFullscreen) {
-        Box(modifier = modifier.fillMaxWidth().aspectRatio(16 / 9f)) {
+        Box(
+            modifier = modifier
+                .fillMaxWidth()
+                .aspectRatio(16 / 9f)
+        ) {
+            AndroidView(
+                factory = { ctx ->
+                    PlayerView(ctx).apply {
+                        player = exoPlayer
+                        useController = true
+                        setShowNextButton(false)
+                        setShowPreviousButton(false)
+                        // ✅ Removed setShowFullscreenButton - doesn't exist
+                    }
+                },
+                modifier = Modifier.fillMaxSize()
+            )
+
+            // ✅ Custom fullscreen button overlay (bottom-right corner)
+            IconButton(
+                onClick = { isFullscreen = true },
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(end = 60.dp, bottom = 8.dp)  // Positioned LEFT of settings
+                    .size(40.dp)
+                    .background(
+                        Color.Black.copy(alpha = 0.5f),
+                        shape = MaterialTheme.shapes.small
+                    )
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Fullscreen,
+                    contentDescription = "Enter Fullscreen",
+                    tint = Color.White,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+        }
+    } else {
+        // ✅ Fullscreen mode (landscape)
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black)
+        ) {
             AndroidView(
                 factory = { ctx ->
                     PlayerView(ctx).apply {
@@ -85,66 +152,33 @@ fun VideoPlayer(
                         setShowPreviousButton(false)
                     }
                 },
-                modifier = Modifier.matchParentSize()
+                modifier = Modifier.fillMaxSize()
             )
 
-            // Fullscreen toggle button (to the left of settings icon)
-            Row(
+            // ✅ Exit fullscreen button (top-right)
+            IconButton(
+                onClick = { isFullscreen = false },
                 modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(
-                    onClick = { isFullscreen = true },
-                    modifier = Modifier
-                        .background(Color.Black.copy(alpha = 0.3f), shape = MaterialTheme.shapes.small)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Fullscreen,
-                        contentDescription = "Enter Fullscreen",
-                        tint = Color.White
+                    .align(Alignment.TopEnd)
+                    .padding(16.dp)
+                    .size(40.dp)
+                    .background(
+                        Color.Black.copy(alpha = 0.5f),
+                        shape = MaterialTheme.shapes.small
                     )
-                }
-                Spacer(modifier = Modifier.width(32.dp).height(16.dp))
+            ) {
+                Icon(
+                    imageVector = Icons.Default.FullscreenExit,
+                    contentDescription = "Exit Fullscreen",
+                    tint = Color.White,
+                    modifier = Modifier.size(24.dp)
+                )
             }
         }
-    } else {
-        // Fullscreen mode
-        Dialog(onDismissRequest = { isFullscreen = false }) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Black)
-            ) {
-                AndroidView(
-                    factory = { ctx ->
-                        PlayerView(ctx).apply {
-                            player = exoPlayer
-                            useController = true
-                        }
-                    },
-                    modifier = Modifier.fillMaxSize()
-                )
 
-                // Exit fullscreen button (top-right)
-                IconButton(
-                    onClick = { isFullscreen = false },
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(12.dp)
-                        .background(Color.Black.copy(alpha = 0.4f), shape = MaterialTheme.shapes.small)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.FullscreenExit,
-                        contentDescription = "Exit Fullscreen",
-                        tint = Color.White
-                    )
-                }
-            }
-
-            // Allow back press to exit fullscreen
-            BackHandler(enabled = true) { isFullscreen = false }
+        // ✅ Allow back press to exit fullscreen
+        BackHandler(enabled = true) {
+            isFullscreen = false
         }
     }
 }

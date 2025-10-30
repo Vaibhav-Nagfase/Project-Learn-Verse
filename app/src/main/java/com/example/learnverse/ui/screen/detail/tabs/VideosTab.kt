@@ -17,6 +17,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -345,27 +346,29 @@ private fun VideoItem(
 ) {
     var showDeleteDialog by remember { mutableStateOf(false) }
     var expandedResources by remember { mutableStateOf(false) }
+    var showMenu by remember { mutableStateOf(false) }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        onClick = onClick  // ✅ Make entire card clickable
     ) {
         Column {
+            // ✅ YouTube-style video row
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable(onClick = onClick)
                     .padding(12.dp)
             ) {
-                // Thumbnail
+                // Thumbnail with play overlay
                 Box(
                     modifier = Modifier
-                        .width(120.dp)
+                        .width(140.dp)  // ✅ Wider thumbnail
                         .height(80.dp)
                         .clip(RoundedCornerShape(8.dp))
                 ) {
                     AsyncImage(
-                        model = video.thumbnailUrl ?: "https://via.placeholder.com/320x180",
+                        model = video.thumbnailUrl ?: "https://via.placeholder.com/320x180?text=Video",
                         contentDescription = "Thumbnail",
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop
@@ -375,18 +378,37 @@ private fun VideoItem(
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.3f)),
+                            .background(Color.Black.copy(alpha = 0.3f)),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             Icons.Default.PlayArrow,
                             contentDescription = "Play",
-                            tint = MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier.size(32.dp)
+                            tint = Color.White,
+                            modifier = Modifier.size(40.dp)
                         )
                     }
 
-                    // Preview badge
+                    // Duration badge (bottom-right)
+                    video.duration?.let { duration ->
+                        Surface(
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .padding(4.dp),
+                            color = Color.Black.copy(alpha = 0.8f),
+                            shape = RoundedCornerShape(4.dp)
+                        ) {
+                            Text(
+                                text = formatDuration(duration),
+                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+
+                    // Preview badge (top-left)
                     if (video.isPreview == true) {
                         Surface(
                             modifier = Modifier
@@ -399,7 +421,8 @@ private fun VideoItem(
                                 "FREE",
                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                                 style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onPrimary
+                                color = MaterialTheme.colorScheme.onPrimary,
+                                fontWeight = FontWeight.Bold
                             )
                         }
                     }
@@ -407,19 +430,21 @@ private fun VideoItem(
 
                 Spacer(Modifier.width(12.dp))
 
-                // Title, Description, Duration
+                // Video info
                 Column(
                     modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
+                    // Title
                     Text(
                         text = video.title ?: "Untitled Video",
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
+                        fontWeight = FontWeight.SemiBold,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis
                     )
 
+                    // Description
                     video.description?.let {
                         Text(
                             text = it,
@@ -430,50 +455,82 @@ private fun VideoItem(
                         )
                     }
 
+                    // Metadata row
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        video.duration?.let { duration ->
-                            Text(
-                                text = "${duration / 60}:${String.format("%02d", duration % 60)}",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                        }
-
+                        // Resources indicator
                         video.resources?.let { resources ->
                             if (resources.isNotEmpty()) {
                                 Icon(
                                     Icons.Default.AttachFile,
                                     contentDescription = "Resources",
-                                    modifier = Modifier.size(16.dp),
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    modifier = Modifier.size(14.dp),
+                                    tint = MaterialTheme.colorScheme.primary
                                 )
                                 Text(
-                                    text = "${resources.size} resources",
+                                    text = "${resources.size}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Text(
+                                    "•",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                         }
+
+                        // Order number
+                        Text(
+                            text = "Lesson ${video.order ?: 1}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 }
 
-                // Tutor actions
+                // Tutor menu button
                 if (isTutor) {
-                    Column {
-                        IconButton(onClick = onEdit) {
-                            Icon(Icons.Default.Edit, "Edit")
+                    Box {
+                        IconButton(onClick = { showMenu = true }) {
+                            Icon(Icons.Default.MoreVert, "Menu")
                         }
-                        IconButton(onClick = onAddResource) {
-                            Icon(Icons.Default.AttachFile, "Add Resource")
-                        }
-                        IconButton(onClick = { showDeleteDialog = true }) {
-                            Icon(
-                                Icons.Default.Delete,
-                                "Delete Video",
-                                tint = MaterialTheme.colorScheme.error
+
+                        DropdownMenu(
+                            expanded = showMenu,
+                            onDismissRequest = { showMenu = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Edit Video") },
+                                onClick = {
+                                    showMenu = false
+                                    onEdit()
+                                },
+                                leadingIcon = { Icon(Icons.Default.Edit, null) }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Add Resource") },
+                                onClick = {
+                                    showMenu = false
+                                    onAddResource()
+                                },
+                                leadingIcon = { Icon(Icons.Default.AttachFile, null) }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Delete") },
+                                onClick = {
+                                    showMenu = false
+                                    showDeleteDialog = true
+                                },
+                                leadingIcon = {
+                                    Icon(
+                                        Icons.Default.Delete,
+                                        null,
+                                        tint = MaterialTheme.colorScheme.error
+                                    )
+                                }
                             )
                         }
                     }
@@ -495,11 +552,12 @@ private fun VideoItem(
                         ) {
                             Text(
                                 "Resources (${resources.size})",
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Bold
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.SemiBold
                             )
                             Icon(
-                                if (expandedResources) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                                if (expandedResources) Icons.Default.KeyboardArrowUp
+                                else Icons.Default.KeyboardArrowDown,
                                 contentDescription = null
                             )
                         }
@@ -521,7 +579,7 @@ private fun VideoItem(
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
             title = { Text("Delete Video") },
-            text = { Text("Are you sure you want to delete \"${video.title}\"? This action cannot be undone.") },
+            text = { Text("Are you sure you want to delete \"${video.title}\"?") },
             confirmButton = {
                 Button(
                     onClick = {
@@ -543,6 +601,24 @@ private fun VideoItem(
         )
     }
 }
+
+private fun formatDuration(seconds: Int): String {
+    return when {
+        seconds < 60 -> "0:${String.format("%02d", seconds)}"
+        seconds < 3600 -> { // Less than 1 hour
+            val minutes = seconds / 60
+            val secs = seconds % 60
+            "$minutes:${String.format("%02d", secs)}"
+        }
+        else -> { // 1 hour or more
+            val hours = seconds / 3600
+            val minutes = (seconds % 3600) / 60
+            val secs = seconds % 60
+            "$hours:${String.format("%02d", minutes)}:${String.format("%02d", secs)}"
+        }
+    }
+}
+
 
 @Composable
 private fun ResourceItem(resource: Activity.VideoContent.Video.Resource) {
