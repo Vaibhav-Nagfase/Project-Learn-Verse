@@ -18,6 +18,7 @@ import com.example.learnverse.data.repository.ActivitiesRepository
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -63,6 +64,29 @@ class ActivitiesViewModel(
 
     private val _homeFeed = MutableStateFlow<HomeFeedResponse?>(null)
     val homeFeed: StateFlow<HomeFeedResponse?> = _homeFeed.asStateFlow()
+
+    // Loading states for operations
+    private val _isUploadingVideo = MutableStateFlow(false)
+    val isUploadingVideo: StateFlow<Boolean> = _isUploadingVideo.asStateFlow()
+
+    // Resource upload states
+    private val _isUploadingResource = MutableStateFlow(false)
+    val isUploadingResource: StateFlow<Boolean> = _isUploadingResource.asStateFlow()
+
+    // Meeting update state
+    private val _isUpdatingMeeting = MutableStateFlow(false)
+    val isUpdatingMeeting: StateFlow<Boolean> = _isUpdatingMeeting.asStateFlow()
+
+    private val _uploadProgress = MutableStateFlow(0)
+    val uploadProgress: StateFlow<Int> = _uploadProgress.asStateFlow()
+
+    private val _selectedActivity = MutableStateFlow<Activity?>(null)
+    val selectedActivity: StateFlow<Activity?> = _selectedActivity.asStateFlow()
+
+    private val _isRefreshing = MutableStateFlow(false)
+    val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
+
+
 
     // Helper for checking enrollment
     val isEnrolled: (String) -> Boolean = { activityId ->
@@ -182,7 +206,7 @@ class ActivitiesViewModel(
             try {
                 val enrolled = repository.getMyEnrolledActivities()
                 _myEnrolledActivities.value = enrolled // Now this will work
-                _enrolledActivities.value = enrolled.map { it.id }.toSet()
+                _enrolledActivities.value = enrolled.map { it.id }.toSet() as Set<String>
             } catch (e: Exception) {
                 errorMessage = "Failed to load your courses: ${e.message}"
             }
@@ -471,29 +495,6 @@ class ActivitiesViewModel(
         }
     }
 
-    /**
-     * ✅ Fetch activity by ID from API (if not in cache)
-     */
-    suspend fun fetchActivityById(activityId: String): Activity? {
-        return withContext(Dispatchers.IO) {
-            try {
-                val response = repository.getActivityById(activityId)
-                if (response.isSuccessful && response.body() != null) {
-                    val activity = response.body()!!
-
-                    // Add to local cache
-                    _activities.value = _activities.value + activity
-
-                    activity
-                } else {
-                    null
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
-                null
-            }
-        }
-    }
 
     fun enrollInActivity(activityId: String) {
         viewModelScope.launch {
@@ -550,4 +551,381 @@ class ActivitiesViewModel(
             }
         }
     }
+
+    /**
+     * ========================================
+     * VIDEO MANAGEMENT OPERATIONS
+     * ========================================
+     */
+
+    /**
+     * Delete resource from video
+     */
+    fun deleteResource(
+        activityId: String,
+        videoId: String,
+        resourceUrl: String,
+        onSuccess: () -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            try {
+                val response = repository.deleteResource(activityId, videoId, resourceUrl)
+
+                if (response.isSuccessful) {
+                    // Refresh activity details
+                    fetchActivityById(activityId)
+                    onSuccess()
+                } else {
+                    val errorMsg = response.errorBody()?.string() ?: "Failed to delete resource"
+                    onError(errorMsg)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                onError(e.message ?: "Delete failed")
+            }
+        }
+    }
+
+
+    /**
+     * ✅ Fetch activity and update StateFlow
+     */
+    suspend fun fetchActivityById(activityId: String): Activity? {
+        return try {
+            _isRefreshing.value = true
+            val response = repository.getActivityById(activityId)
+            if (response.isSuccessful) {
+                val activity = response.body()
+                _selectedActivity.value = activity // ✅ Update StateFlow
+                activity
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        } finally {
+            _isRefreshing.value = false
+        }
+    }
+
+    /**
+     * ✅ Refresh current activity (call after any update)
+     */
+    fun refreshCurrentActivity() {
+        viewModelScope.launch {
+            _selectedActivity.value?.id?.let { activityId ->
+                fetchActivityById(activityId)
+            }
+        }
+    }
+
+    /**
+     * ✅ Add video with URL - WITH REFRESH
+     */
+    fun addVideoWithUrl(
+        activityId: String,
+        title: String,
+        description: String,
+        videoUrl: String,
+        order: Int,
+        isPreview: Boolean,
+        onSuccess: () -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            try {
+                _isUploadingVideo.value = true
+
+                val response = repository.addVideoWithUrl(
+                    activityId, title, description, videoUrl, order, isPreview
+                )
+
+                if (response.isSuccessful) {
+                    // ✅ Refresh activity
+                    fetchActivityById(activityId)
+                    onSuccess()
+                } else {
+                    val errorMsg = response.errorBody()?.string() ?: "Failed to add video"
+                    onError(errorMsg)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                onError(e.message ?: "Unknown error occurred")
+            } finally {
+                _isUploadingVideo.value = false
+            }
+        }
+    }
+
+    /**
+     * ✅ Upload video file - WITH REFRESH
+     */
+    fun uploadVideoFile(
+        activityId: String,
+        videoUri: Uri,
+        title: String,
+        description: String,
+        order: Int,
+        isPreview: Boolean,
+        context: Context,
+        onSuccess: () -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            var tempFile: File? = null
+            try {
+                _isUploadingVideo.value = true
+                _uploadProgress.value = 0
+
+                // Check file size (500MB limit)
+                val fileSizeMB = repository.getFileSize(videoUri, context)
+                if (fileSizeMB > 500) {
+                    onError("Video file size exceeds 500MB limit")
+                    _isUploadingVideo.value = false
+                    return@launch
+                }
+
+                // Convert URI to File
+                tempFile = repository.uriToFile(videoUri, context)
+
+                // Upload with real progress tracking
+                val response = withContext(Dispatchers.IO) {
+                    repository.uploadVideoFile(
+                        activityId = activityId,
+                        videoFile = tempFile,
+                        title = title,
+                        description = description,
+                        order = order,
+                        isPreview = isPreview,
+                        onProgress = { progress ->
+                            // ✅ Real-time progress update
+                            _uploadProgress.value = progress
+                        }
+                    )
+                }
+
+                if (response.isSuccessful) {
+                    // Refresh activity
+                    fetchActivityById(activityId)
+                    _uploadProgress.value = 100
+                    onSuccess()
+                } else {
+                    val errorMsg = response.errorBody()?.string() ?: "Failed to upload video"
+                    onError(errorMsg)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                onError(e.message ?: "Upload failed")
+            } finally {
+                tempFile?.delete()
+                _isUploadingVideo.value = false
+                delay(1000)
+                _uploadProgress.value = 0
+            }
+        }
+    }
+
+    /**
+     * ✅ Update video - WITH REFRESH
+     */
+    fun updateVideo(
+        activityId: String,
+        videoId: String,
+        title: String? = null,
+        description: String? = null,
+        videoUrl: String? = null,
+        order: Int? = null,
+        isPreview: Boolean? = null,
+        onSuccess: () -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            try {
+                val response = repository.updateVideo(
+                    activityId, videoId, title, description, videoUrl, order, isPreview
+                )
+
+                if (response.isSuccessful) {
+                    // ✅ Refresh activity
+                    fetchActivityById(activityId)
+                    onSuccess()
+                } else {
+                    val errorMsg = response.errorBody()?.string() ?: "Failed to update video"
+                    onError(errorMsg)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                onError(e.message ?: "Update failed")
+            }
+        }
+    }
+
+    /**
+     * ✅ Delete video - WITH REFRESH
+     */
+    fun deleteVideo(
+        activityId: String,
+        videoId: String,
+        onSuccess: () -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            try {
+                val response = repository.deleteVideo(activityId, videoId)
+
+                if (response.isSuccessful) {
+                    // ✅ Refresh activity
+                    fetchActivityById(activityId)
+                    onSuccess()
+                } else {
+                    val errorMsg = response.errorBody()?.string() ?: "Failed to delete video"
+                    onError(errorMsg)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                onError(e.message ?: "Delete failed")
+            }
+        }
+    }
+
+    /**
+     * ✅ Update meeting details - WITH REFRESH
+     */
+    fun updateMeetingDetails(
+        activityId: String,
+        platform: String? = null,
+        meetingLink: String? = null,
+        meetingId: String? = null,
+        passcode: String? = null,
+        onSuccess: () -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            try {
+                _isUpdatingMeeting.value = true
+
+                val response = repository.updateMeetingDetails(
+                    activityId, platform, meetingLink, meetingId, passcode
+                )
+
+                if (response.isSuccessful) {
+                    // ✅ Refresh activity
+                    fetchActivityById(activityId)
+                    onSuccess()
+                } else {
+                    val errorMsg = response.errorBody()?.string() ?: "Failed to update meeting"
+                    onError(errorMsg)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                onError(e.message ?: "Update failed")
+            } finally {
+                _isUpdatingMeeting.value = false
+            }
+        }
+    }
+
+    /**
+     * ✅ Delete meeting link - WITH REFRESH
+     */
+    fun deleteMeetingLink(
+        activityId: String,
+        onSuccess: () -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            try {
+                val response = repository.deleteMeetingLink(activityId)
+
+                if (response.isSuccessful) {
+                    // ✅ Refresh activity
+                    fetchActivityById(activityId)
+                    onSuccess()
+                } else {
+                    val errorMsg = response.errorBody()?.string() ?: "Failed to delete meeting"
+                    onError(errorMsg)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                onError(e.message ?: "Delete failed")
+            }
+        }
+    }
+
+    // ✅ Add same for resource operations
+    fun uploadResourceFile(
+        activityId: String,
+        videoId: String,
+        resourceUri: Uri,
+        type: String,
+        title: String,
+        context: Context,
+        onSuccess: () -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            var tempFile: File? = null
+            try {
+                _isUploadingResource.value = true
+                tempFile = repository.uriToFile(resourceUri, context)
+
+                val response = repository.uploadResourceFile(
+                    activityId, videoId, tempFile, type, title
+                )
+
+                if (response.isSuccessful) {
+                    // ✅ Refresh activity
+                    fetchActivityById(activityId)
+                    onSuccess()
+                } else {
+                    val errorMsg = response.errorBody()?.string() ?: "Failed to upload resource"
+                    onError(errorMsg)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                onError(e.message ?: "Upload failed")
+            } finally {
+                tempFile?.delete()
+                _isUploadingResource.value = false
+            }
+        }
+    }
+
+    fun addResourceWithUrl(
+        activityId: String,
+        videoId: String,
+        type: String,
+        title: String,
+        url: String,
+        onSuccess: () -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            try {
+                _isUploadingResource.value = true
+
+                val response = repository.addResourceWithUrl(
+                    activityId, videoId, type, title, url
+                )
+
+                if (response.isSuccessful) {
+                    // ✅ Refresh activity
+                    fetchActivityById(activityId)
+                    onSuccess()
+                } else {
+                    val errorMsg = response.errorBody()?.string() ?: "Failed to add resource"
+                    onError(errorMsg)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                onError(e.message ?: "Failed to add resource")
+            } finally {
+                _isUploadingResource.value = false
+            }
+        }
+    }
+
+
 }

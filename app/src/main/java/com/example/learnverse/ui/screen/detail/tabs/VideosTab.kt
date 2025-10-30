@@ -1,6 +1,9 @@
-// VideosTab.kt (COMPLETE REPLACEMENT)
 package com.example.learnverse.ui.screen.detail.tabs
 
+import android.content.Context
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -15,12 +18,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.learnverse.data.model.Activity
+import com.example.learnverse.ui.components.dialogs.AddVideoDialog
+import com.example.learnverse.ui.components.dialogs.EditVideoDialog
+import com.example.learnverse.ui.components.dialogs.AddResourceDialog
+import com.example.learnverse.viewmodel.ActivitiesViewModel
 
 @Composable
 fun VideosTab(
@@ -28,101 +36,315 @@ fun VideosTab(
     isTutor: Boolean,
     isEnrolled: Boolean,
     navController: NavController,
-    onDeleteVideo: (String) -> Unit
+    viewModel: ActivitiesViewModel
 ) {
+    val context = LocalContext.current
     val videos = activity.videoContent?.recordedVideos
     val canViewVideos = isTutor || isEnrolled
 
-    // Use LazyColumn for all states to maintain consistent top alignment
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        // Locked state
-        if (!canViewVideos) {
-            item {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 32.dp)
-                ) {
-                    Icon(
-                        Icons.Default.Lock,
-                        contentDescription = null,
-                        modifier = Modifier.size(64.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        "Enroll to Access Videos",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        "Video content is only available to enrolled students",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-            return@LazyColumn
-        }
+    // Dialog states
+    var showAddVideoDialog by remember { mutableStateOf(false) }
+    var showEditVideoDialog by remember { mutableStateOf<Activity.VideoContent.Video?>(null) }
+    var showAddResourceDialog by remember { mutableStateOf<Activity.VideoContent.Video?>(null) }
 
-        // Empty state
-        if (videos.isNullOrEmpty()) {
-            item {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 32.dp)
-                ) {
-                    Icon(
-                        Icons.Default.PlayArrow,
-                        contentDescription = null,
-                        modifier = Modifier.size(64.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        if (isTutor) "No videos uploaded yet" else "No videos available yet",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    if (isTutor) {
+    // Loading states from ViewModel
+    val isUploadingVideo by viewModel.isUploadingVideo.collectAsState()
+    val uploadProgress by viewModel.uploadProgress.collectAsState()
+    val isUploadingResource by viewModel.isUploadingResource.collectAsState()
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        // Main content
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // Locked state
+            if (!canViewVideos) {
+                item {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 32.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Lock,
+                            contentDescription = null,
+                            modifier = Modifier.size(64.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                         Text(
-                            "Tap the + button to add videos",
+                            "Enroll to Access Videos",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            "Video content is only available to enrolled students",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
+                return@LazyColumn
             }
-            return@LazyColumn
+
+            // Empty state
+            if (videos.isNullOrEmpty()) {
+                item {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 32.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.PlayArrow,
+                            contentDescription = null,
+                            modifier = Modifier.size(64.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            if (isTutor) "No videos uploaded yet" else "No videos available yet",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        if (isTutor) {
+                            Text(
+                                "Tap the + button to add videos",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+                return@LazyColumn
+            }
+
+            // Video list
+            items(videos.sortedBy { it.order }) { video ->
+                VideoItem(
+                    video = video,
+                    isTutor = isTutor,
+                    onClick = {
+                        navController.navigate("video_player/${activity.id}/${video.videoId}")
+                    },
+                    onEdit = { showEditVideoDialog = video },
+                    onAddResource = { showAddResourceDialog = video },
+                    onDelete = {
+                        viewModel.deleteVideo(
+                            activityId = activity.id ?: "",
+                            videoId = video.videoId ?: "",
+                            onSuccess = {
+                                android.widget.Toast.makeText(
+                                    context,
+                                    "Video deleted successfully!",
+                                    android.widget.Toast.LENGTH_SHORT
+                                ).show()
+                            },
+                            onError = { error ->
+                                android.widget.Toast.makeText(
+                                    context,
+                                    "Delete failed: $error",
+                                    android.widget.Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        )
+                    }
+                )
+            }
+
+            // Bottom padding for FAB
+            item {
+                Spacer(modifier = Modifier.height(80.dp))
+            }
         }
 
-        // Video list
-        items(videos.sortedBy { it.order }) { video ->
-            VideoItem(
-                video = video,
-                isTutor = isTutor,
-                onClick = { navController.navigate("video_player/${activity.id}/${video.videoId}") },
-                onDelete = { onDeleteVideo(video.videoId) }
-            )
+        // FAB for tutors only
+        if (isTutor) {
+            FloatingActionButton(
+                onClick = { showAddVideoDialog = true },
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(16.dp),
+                containerColor = MaterialTheme.colorScheme.primary
+            ) {
+                Icon(Icons.Default.Add, contentDescription = "Add Video")
+            }
         }
+    }
+
+    // Add Video Dialog
+    if (showAddVideoDialog) {
+        AddVideoDialog(
+            activityId = activity.id ?: "",
+            nextOrder = (videos?.maxOfOrNull { it.order ?: 0 } ?: 0) + 1,
+            onDismiss = { showAddVideoDialog = false },
+            onVideoAdded = { showAddVideoDialog = false },
+            onAddWithUrl = { title, desc, url, order, isPreview ->
+                viewModel.addVideoWithUrl(
+                    activityId = activity.id ?: "",
+                    title = title,
+                    description = desc,
+                    videoUrl = url,
+                    order = order,
+                    isPreview = isPreview,
+                    onSuccess = {
+                        showAddVideoDialog = false
+                        android.widget.Toast.makeText(
+                            context,
+                            "Video added successfully!",
+                            android.widget.Toast.LENGTH_SHORT
+                        ).show()
+                    },
+                    onError = { error ->
+                        android.widget.Toast.makeText(
+                            context,
+                            "Failed: $error",
+                            android.widget.Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                )
+            },
+            onUploadFile = { uri, title, desc, order, isPreview ->
+                viewModel.uploadVideoFile(
+                    activityId = activity.id ?: "",
+                    videoUri = uri,
+                    title = title,
+                    description = desc,
+                    order = order,
+                    isPreview = isPreview,
+                    context = context,
+                    onSuccess = {
+                        showAddVideoDialog = false
+                        android.widget.Toast.makeText(
+                            context,
+                            "Video uploaded successfully!",
+                            android.widget.Toast.LENGTH_SHORT
+                        ).show()
+                    },
+                    onError = { error ->
+                        android.widget.Toast.makeText(
+                            context,
+                            "Upload failed: $error",
+                            android.widget.Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                )
+            },
+            isUploading = isUploadingVideo,
+            uploadProgress = uploadProgress
+        )
+    }
+
+    // Edit Video Dialog
+    showEditVideoDialog?.let { video ->
+        EditVideoDialog(
+            video = video,
+            onDismiss = { showEditVideoDialog = null },
+            onUpdate = { title, desc, url, order, isPreview ->
+                viewModel.updateVideo(
+                    activityId = activity.id ?: "",
+                    videoId = video.videoId ?: "",
+                    title = title,
+                    description = desc,
+                    videoUrl = url,
+                    order = order,
+                    isPreview = isPreview,
+                    onSuccess = {
+                        showEditVideoDialog = null
+                        android.widget.Toast.makeText(
+                            context,
+                            "Video updated!",
+                            android.widget.Toast.LENGTH_SHORT
+                        ).show()
+                    },
+                    onError = { error ->
+                        android.widget.Toast.makeText(
+                            context,
+                            "Update failed: $error",
+                            android.widget.Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                )
+            },
+            isUpdating = false
+        )
+    }
+
+    // Add Resource Dialog
+    showAddResourceDialog?.let { video ->
+        AddResourceDialog(
+            activityId = activity.id ?: "",
+            videoId = video.videoId ?: "",
+            onDismiss = { showAddResourceDialog = null },
+            onAddWithUrl = { type, title, url ->
+                viewModel.addResourceWithUrl(
+                    activityId = activity.id ?: "",
+                    videoId = video.videoId ?: "",
+                    type = type,
+                    title = title,
+                    url = url,
+                    onSuccess = {
+                        showAddResourceDialog = null
+                        android.widget.Toast.makeText(
+                            context,
+                            "Resource added!",
+                            android.widget.Toast.LENGTH_SHORT
+                        ).show()
+                    },
+                    onError = { error ->
+                        android.widget.Toast.makeText(
+                            context,
+                            "Failed: $error",
+                            android.widget.Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                )
+            },
+            onUploadFile = { uri, type, title ->
+                viewModel.uploadResourceFile(
+                    activityId = activity.id ?: "",
+                    videoId = video.videoId ?: "",
+                    resourceUri = uri,
+                    type = type,
+                    title = title,
+                    context = context,
+                    onSuccess = {
+                        showAddResourceDialog = null
+                        android.widget.Toast.makeText(
+                            context,
+                            "Resource uploaded!",
+                            android.widget.Toast.LENGTH_SHORT
+                        ).show()
+                    },
+                    onError = { error ->
+                        android.widget.Toast.makeText(
+                            context,
+                            "Upload failed: $error",
+                            android.widget.Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                )
+            },
+            isUploading = isUploadingResource
+        )
     }
 }
 
 @Composable
-fun VideoItem(
+private fun VideoItem(
     video: Activity.VideoContent.Video,
     isTutor: Boolean,
     onClick: () -> Unit,
+    onEdit: () -> Unit,
+    onAddResource: () -> Unit,
     onDelete: () -> Unit
 ) {
     var showDeleteDialog by remember { mutableStateOf(false) }
+    var expandedResources by remember { mutableStateOf(false) }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -153,9 +375,7 @@ fun VideoItem(
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .background(
-                                MaterialTheme.colorScheme.surface.copy(alpha = 0.3f)
-                            ),
+                            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.3f)),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
@@ -164,6 +384,24 @@ fun VideoItem(
                             tint = MaterialTheme.colorScheme.onSurface,
                             modifier = Modifier.size(32.dp)
                         )
+                    }
+
+                    // Preview badge
+                    if (video.isPreview == true) {
+                        Surface(
+                            modifier = Modifier
+                                .align(Alignment.TopStart)
+                                .padding(4.dp),
+                            color = MaterialTheme.colorScheme.primary,
+                            shape = RoundedCornerShape(4.dp)
+                        ) {
+                            Text(
+                                "FREE",
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onPrimary
+                            )
+                        }
                     }
                 }
 
@@ -222,14 +460,22 @@ fun VideoItem(
                     }
                 }
 
-                // Delete button (only for tutor)
+                // Tutor actions
                 if (isTutor) {
-                    IconButton(onClick = { showDeleteDialog = true }) {
-                        Icon(
-                            Icons.Default.Delete,
-                            "Delete Video",
-                            tint = MaterialTheme.colorScheme.error
-                        )
+                    Column {
+                        IconButton(onClick = onEdit) {
+                            Icon(Icons.Default.Edit, "Edit")
+                        }
+                        IconButton(onClick = onAddResource) {
+                            Icon(Icons.Default.AttachFile, "Add Resource")
+                        }
+                        IconButton(onClick = { showDeleteDialog = true }) {
+                            Icon(
+                                Icons.Default.Delete,
+                                "Delete Video",
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                        }
                     }
                 }
             }
@@ -238,17 +484,31 @@ fun VideoItem(
             video.resources?.let { resources ->
                 if (resources.isNotEmpty()) {
                     Divider()
-                    Column(
-                        modifier = Modifier.padding(12.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text(
-                            "Resources",
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                        resources.forEach { resource ->
-                            ResourceItem(resource)
+
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { expandedResources = !expandedResources },
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                "Resources (${resources.size})",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Icon(
+                                if (expandedResources) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                                contentDescription = null
+                            )
+                        }
+
+                        if (expandedResources) {
+                            Spacer(Modifier.height(8.dp))
+                            resources.forEach { resource ->
+                                ResourceItem(resource)
+                            }
                         }
                     }
                 }
@@ -285,7 +545,7 @@ fun VideoItem(
 }
 
 @Composable
-fun ResourceItem(resource: Activity.VideoContent.Video.Resource) {
+private fun ResourceItem(resource: Activity.VideoContent.Video.Resource) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
