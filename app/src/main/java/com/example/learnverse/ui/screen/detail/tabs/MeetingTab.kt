@@ -1,265 +1,324 @@
-// MeetingTab.kt (COMPLETE REPLACEMENT)
 package com.example.learnverse.ui.screen.detail.tabs
 
-import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.learnverse.data.model.Activity
+import com.example.learnverse.ui.components.dialogs.AddMeetingDialog
+import com.example.learnverse.viewmodel.ActivitiesViewModel
 
 @Composable
 fun MeetingTab(
     activity: Activity,
     isTutor: Boolean,
     isEnrolled: Boolean,
-    context: Context,
-    onEdit: () -> Unit,
-    onDelete: () -> Unit
+    viewModel: ActivitiesViewModel
 ) {
-    val videoContent = activity.videoContent
-    val hasMeeting = videoContent?.meetingLink != null
+    val context = LocalContext.current
+    val meetingDetails = activity.videoContent
     val canViewMeeting = isTutor || isEnrolled
 
-    var showChooser by remember { mutableStateOf(false) }
+    // Dialog states
+    var showAddMeetingDialog by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
 
-    if (!canViewMeeting) {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-                modifier = Modifier.padding(32.dp)
-            ) {
-                Icon(
-                    Icons.Default.Lock,
-                    contentDescription = null,
-                    modifier = Modifier.size(64.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Text(
-                    "Enroll to Access Meeting",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    "Meeting link is only available to enrolled students",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
-        return
-    }
+    // Loading state
+    val isUpdatingMeeting by viewModel.isUpdatingMeeting.collectAsState()
 
-    if (!hasMeeting) {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                Icon(
-                    Icons.Default.VideoCall,
-                    contentDescription = null,
-                    modifier = Modifier.size(64.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Text(
-                    if (isTutor) "No meeting link added yet" else "No meeting link available",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                if (isTutor) {
+            // Locked state
+            if (!canViewMeeting) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 32.dp)
+                ) {
+                    Icon(
+                        Icons.Default.Lock,
+                        contentDescription = null,
+                        modifier = Modifier.size(64.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                     Text(
-                        "Tap the + button to add meeting link",
+                        "Enroll to Access Meeting",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        "Meeting details are only available to enrolled students",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
+                return@Column
             }
-        }
-        return
-    }
 
-    // Changed Column to LazyColumn for scrolling
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        // Meeting Card
-        item {
+            // Empty state
+            if (meetingDetails == null || meetingDetails.meetingLink.isNullOrBlank()) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 32.dp)
+                ) {
+                    Icon(
+                        Icons.Default.Videocam,
+                        contentDescription = null,
+                        modifier = Modifier.size(64.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        if (isTutor) "No meeting link added yet" else "No meeting scheduled yet",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    if (isTutor) {
+                        Text(
+                            "Tap the + button to add meeting details",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+                return@Column
+            }
+
+            // Meeting details card
             Card(
                 modifier = Modifier.fillMaxWidth(),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer
                 )
             ) {
                 Column(
                     modifier = Modifier.padding(20.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                Icons.Default.VideoCall,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(32.dp)
-                            )
-                            Spacer(Modifier.width(12.dp))
-                            Text(
-                                "Live Meeting",
-                                style = MaterialTheme.typography.titleLarge,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-
-                        if (isTutor) {
-                            Row {
-                                IconButton(onClick = onEdit) {
-                                    Icon(Icons.Default.Edit, "Edit")
-                                }
-                                IconButton(onClick = { showDeleteDialog = true }) {
-                                    Icon(
-                                        Icons.Default.Delete,
-                                        "Delete",
-                                        tint = MaterialTheme.colorScheme.error
-                                    )
-                                }
-                            }
-                        }
+                        Icon(
+                            Icons.Default.Videocam,
+                            contentDescription = null,
+                            modifier = Modifier.size(32.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                        Text(
+                            "Meeting Details",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
                     }
 
-                    Divider()
+                    Divider(color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.2f))
 
-                    videoContent.platform?.let { platform ->
-                        InfoRowMeeting(
-                            icon = Icons.Default.Computer,
+                    // Platform
+                    meetingDetails.platform?.let { platform ->
+                        MeetingDetailRow(
+                            icon = Icons.Default.Apps,
                             label = "Platform",
                             value = platform
                         )
                     }
 
-                    videoContent.meetingId?.let { meetingId ->
-                        InfoRowMeeting(
-                            icon = Icons.Default.Tag,
+                    // Meeting Link
+                    MeetingDetailRow(
+                        icon = Icons.Default.Link,
+                        label = "Meeting Link",
+                        value = meetingDetails.meetingLink ?: "",
+                        isLink = true,
+                        onClick = {
+                            try {
+                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(meetingDetails.meetingLink))
+                                context.startActivity(intent)
+                            } catch (e: Exception) {
+                                android.widget.Toast.makeText(
+                                    context,
+                                    "Unable to open link",
+                                    android.widget.Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        }
+                    )
+
+                    // Meeting ID
+                    meetingDetails.meetingId?.let { meetingId ->
+                        MeetingDetailRow(
+                            icon = Icons.Default.Fingerprint,
                             label = "Meeting ID",
                             value = meetingId
                         )
                     }
 
-                    videoContent.passcode?.let { passcode ->
-                        InfoRowMeeting(
+                    // Passcode
+                    meetingDetails.passcode?.let { passcode ->
+                        MeetingDetailRow(
                             icon = Icons.Default.Lock,
                             label = "Passcode",
                             value = passcode
                         )
                     }
+
+                    // Join button
+                    Button(
+                        onClick = {
+                            try {
+                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(meetingDetails.meetingLink))
+                                context.startActivity(intent)
+                            } catch (e: Exception) {
+                                android.widget.Toast.makeText(
+                                    context,
+                                    "Unable to join meeting",
+                                    android.widget.Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary
+                        )
+                    ) {
+                        Icon(Icons.Default.Videocam, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Join Meeting")
+                    }
+
+                    // Tutor actions
+                    if (isTutor) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            OutlinedButton(
+                                onClick = { showAddMeetingDialog = true },
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(Modifier.width(4.dp))
+                                Text("Edit")
+                            }
+
+                            OutlinedButton(
+                                onClick = { showDeleteDialog = true },
+                                modifier = Modifier.weight(1f),
+                                colors = ButtonDefaults.outlinedButtonColors(
+                                    contentColor = MaterialTheme.colorScheme.error
+                                )
+                            ) {
+                                Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(Modifier.width(4.dp))
+                                Text("Delete")
+                            }
+                        }
+                    }
                 }
             }
-        }
 
-        // Join Button
-        item {
-            Button(
-                onClick = { showChooser = true },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary
-                )
-            ) {
-                Icon(Icons.Default.Launch, contentDescription = null)
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    "Join Meeting",
-                    style = MaterialTheme.typography.titleMedium
-                )
-            }
-        }
-
-        // Instructions
-        item {
+            // Info card
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.secondaryContainer
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant
                 )
             ) {
-                Column(
+                Row(
                     modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Text(
-                        "How to Join",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
+                    Icon(
+                        Icons.Default.Info,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    Text("1. Click 'Join Meeting' button above")
-                    Text("2. Choose to open in browser or app")
-                    Text("3. Enter Meeting ID and Passcode if required")
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(
+                            "Meeting Instructions",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            "• Join the meeting using the link above\n" +
+                                    "• Use the Meeting ID and Passcode if required\n" +
+                                    "• Make sure your camera and microphone are working",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
+            }
+
+            // Bottom padding for FAB
+            Spacer(modifier = Modifier.height(80.dp))
+        }
+
+        // FAB for tutors only (only show if no meeting exists)
+        if (isTutor && (meetingDetails == null || meetingDetails.meetingLink.isNullOrBlank())) {
+            FloatingActionButton(
+                onClick = { showAddMeetingDialog = true },
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(16.dp),
+                containerColor = MaterialTheme.colorScheme.primary
+            ) {
+                Icon(Icons.Default.Add, contentDescription = "Add Meeting")
             }
         }
     }
 
-    // Chooser Dialog
-    if (showChooser) {
-        AlertDialog(
-            onDismissRequest = { showChooser = false },
-            title = { Text("Open Meeting Link") },
-            text = { Text("How would you like to open the meeting?") },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(videoContent.meetingLink))
-                        context.startActivity(intent)
-                        showChooser = false
+    // Add/Edit Meeting Dialog
+    if (showAddMeetingDialog) {
+        AddMeetingDialog(
+            existingMeeting = meetingDetails,
+            onDismiss = { showAddMeetingDialog = false },
+            onSave = { platform, link, id, passcode ->
+                viewModel.updateMeetingDetails(
+                    activityId = activity.id ?: "",
+                    platform = platform,
+                    meetingLink = link,
+                    meetingId = id,
+                    passcode = passcode,
+                    onSuccess = {
+                        showAddMeetingDialog = false
+                        android.widget.Toast.makeText(
+                            context,
+                            "Meeting details saved!",
+                            android.widget.Toast.LENGTH_SHORT
+                        ).show()
+                    },
+                    onError = { error ->
+                        android.widget.Toast.makeText(
+                            context,
+                            "Failed: $error",
+                            android.widget.Toast.LENGTH_SHORT
+                        ).show()
                     }
-                ) {
-                    Text("Open in App")
-                }
+                )
             },
-            dismissButton = {
-                TextButton(
-                    onClick = {
-                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(videoContent.meetingLink))
-                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                        try {
-                            intent.setPackage("com.android.chrome")
-                            context.startActivity(intent)
-                        } catch (e: Exception) {
-                            val fallbackIntent = Intent(Intent.ACTION_VIEW, Uri.parse(videoContent.meetingLink))
-                            context.startActivity(fallbackIntent)
-                        }
-                        showChooser = false
-                    }
-                ) {
-                    Text("Open in Browser")
-                }
-            }
+            isUpdating = isUpdatingMeeting
         )
     }
 
@@ -268,12 +327,28 @@ fun MeetingTab(
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
             title = { Text("Delete Meeting Link") },
-            text = { Text("Are you sure you want to delete this meeting link?") },
+            text = { Text("Are you sure you want to delete the meeting link? Students will no longer be able to access it.") },
             confirmButton = {
                 Button(
                     onClick = {
-                        onDelete()
-                        showDeleteDialog = false
+                        viewModel.deleteMeetingLink(
+                            activityId = activity.id ?: "",
+                            onSuccess = {
+                                showDeleteDialog = false
+                                android.widget.Toast.makeText(
+                                    context,
+                                    "Meeting link deleted!",
+                                    android.widget.Toast.LENGTH_SHORT
+                                ).show()
+                            },
+                            onError = { error ->
+                                android.widget.Toast.makeText(
+                                    context,
+                                    "Delete failed: $error",
+                                    android.widget.Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        )
                     },
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.error
@@ -292,34 +367,53 @@ fun MeetingTab(
 }
 
 @Composable
-fun InfoRowMeeting(
+private fun MeetingDetailRow(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     label: String,
-    value: String
+    value: String,
+    isLink: Boolean = false,
+    onClick: (() -> Unit)? = null
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.Top
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(
-                icon,
-                contentDescription = null,
-                modifier = Modifier.size(20.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(Modifier.width(8.dp))
+        Icon(
+            icon,
+            contentDescription = null,
+            modifier = Modifier.size(20.dp),
+            tint = MaterialTheme.colorScheme.primary
+        )
+
+        Column(modifier = Modifier.weight(1f)) {
             Text(
                 label,
-                style = MaterialTheme.typography.bodyMedium,
+                style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+
+            if (isLink && onClick != null) {
+                TextButton(
+                    onClick = onClick,
+                    contentPadding = PaddingValues(0.dp),
+                    modifier = Modifier.height(32.dp)
+                ) {
+                    Text(
+                        value,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            } else {
+                Text(
+                    value,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+            }
         }
-        Text(
-            value,
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.Medium
-        )
     }
 }

@@ -327,17 +327,17 @@ fun TutorNavGraph(
     authViewModel: AuthViewModel,
     tutorViewModel: TutorViewModel,
     activitiesViewModel: ActivitiesViewModel,
-    communityViewModel: CommunityViewModel // Add CommunityViewModel parameter
+    communityViewModel: CommunityViewModel
 ) {
-    val navController = rememberNavController() // This is the MAIN NavController for this graph
-    NavHost(navController = navController, startDestination = "tutor_dashboard_main") { // Changed start destination name
-        composable("tutor_dashboard_main") { // Renamed route
+    val navController = rememberNavController()
+    NavHost(navController = navController, startDestination = "tutor_dashboard_main") {
+        composable("tutor_dashboard_main") {
             TutorDashboardScreen(
-                mainNavController = navController, // Pass the main controller
+                mainNavController = navController,
                 authViewModel = authViewModel,
                 tutorViewModel = tutorViewModel,
                 activitiesViewModel = activitiesViewModel,
-                communityViewModel = communityViewModel // Pass it down
+                communityViewModel = communityViewModel
             )
         }
 
@@ -350,7 +350,6 @@ fun TutorNavGraph(
             )
         }
 
-        // Keep the route for creating/editing activities accessible globally
         composable(
             route = "create_activity?activityId={activityId}",
             arguments = listOf(navArgument("activityId") { nullable = true })
@@ -363,7 +362,7 @@ fun TutorNavGraph(
             )
         }
 
-        // ✅ ADD THIS - Video Player Route
+        // ✅ Video Player Route (Keep this)
         composable(
             route = "video_player/{activityId}/{videoId}",
             arguments = listOf(
@@ -371,103 +370,15 @@ fun TutorNavGraph(
                 navArgument("videoId") { type = NavType.StringType }
             )
         ) { backStackEntry ->
-            val activityId = backStackEntry.arguments?.getString("activityId") ?: ""
-            val videoId = backStackEntry.arguments?.getString("videoId") ?: ""
-
-            // Temporary placeholder - replace with actual VideoPlayerScreen
-            Box(
-                modifier = Modifier.fillMaxSize().background(Color.Black),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    Icon(
-                        Icons.Default.PlayCircle,
-                        contentDescription = null,
-                        modifier = Modifier.size(80.dp),
-                        tint = Color.White
-                    )
-                    Text(
-                        "Video Player",
-                        style = MaterialTheme.typography.titleLarge,
-                        color = Color.White
-                    )
-                    Text(
-                        "Activity: $activityId",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = Color.White
-                    )
-                    Text(
-                        "Video: $videoId",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = Color.White
-                    )
-                    Spacer(Modifier.height(16.dp))
-                    Button(onClick = { navController.navigateUp() }) {
-                        Text("Close Player")
-                    }
-                }
-            }
+            VideoPlayerScreen(
+                activityId = backStackEntry.arguments?.getString("activityId") ?: "",
+                videoId = backStackEntry.arguments?.getString("videoId") ?: "",
+                activitiesViewModel = activitiesViewModel,
+                navController = navController
+            )
         }
 
-        composable("upload_video/{activityId}") { backStackEntry ->
-            val activityId = backStackEntry.arguments?.getString("activityId") ?: ""
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("Upload Video Screen", style = MaterialTheme.typography.titleLarge)
-                    Spacer(Modifier.height(16.dp))
-                    Text("Activity ID: $activityId")
-                    Spacer(Modifier.height(16.dp))
-                    Button(onClick = { navController.navigateUp() }) {
-                        Text("Go Back")
-                    }
-                }
-            }
-        }
-
-        composable("add_meeting/{activityId}") { backStackEntry ->
-            val activityId = backStackEntry.arguments?.getString("activityId") ?: ""
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("Add Meeting Link Screen", style = MaterialTheme.typography.titleLarge)
-                    Spacer(Modifier.height(16.dp))
-                    Text("Activity ID: $activityId")
-                    Spacer(Modifier.height(16.dp))
-                    Button(onClick = { navController.navigateUp() }) {
-                        Text("Go Back")
-                    }
-                }
-            }
-        }
-
-        composable("edit_meeting/{activityId}") { backStackEntry ->
-            val activityId = backStackEntry.arguments?.getString("activityId") ?: ""
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("Edit Meeting Link Screen", style = MaterialTheme.typography.titleLarge)
-                    Spacer(Modifier.height(16.dp))
-                    Text("Activity ID: $activityId")
-                    Spacer(Modifier.height(16.dp))
-                    Button(onClick = { navController.navigateUp() }) {
-                        Text("Go Back")
-                    }
-                }
-            }
-        }
-
-
-        // --- ADD Route for Create Post ---
+        // ✅ Keep Create Post Route
         composable(
             route = "createPost?postId={postId}",
             arguments = listOf(navArgument("postId") { nullable = true; type = NavType.StringType })
@@ -478,7 +389,8 @@ fun TutorNavGraph(
                 postIdToEdit = backStackEntry.arguments?.getString("postId")
             )
         }
-        // --- ADD Route for Post Detail ---
+
+        // ✅ Keep Post Detail Route
         composable(
             route = "postDetail/{postId}",
             arguments = listOf(navArgument("postId") { type = NavType.StringType })
@@ -491,9 +403,12 @@ fun TutorNavGraph(
                     communityViewModel = communityViewModel,
                     authViewModel = authViewModel
                 )
-            } else { Text("Error: Post ID missing") }
+            } else {
+                Text("Error: Post ID missing")
+            }
         }
-        // --- ADD Route for Tutor Profile ---
+
+        // ✅ Keep Tutor Profile Route
         composable(
             route = "tutorProfile/{tutorId}",
             arguments = listOf(navArgument("tutorId") { type = NavType.StringType })
@@ -506,7 +421,9 @@ fun TutorNavGraph(
                     authViewModel = authViewModel,
                     activitiesViewModel = activitiesViewModel
                 )
-            } else { Text("Error: Tutor ID missing") }
+            } else {
+                Text("Error: Tutor ID missing")
+            }
         }
     }
 }
@@ -520,4 +437,3 @@ fun AdminNavGraph(authViewModel: AuthViewModel, adminViewModel: AdminViewModel) 
         }
     }
 }
-

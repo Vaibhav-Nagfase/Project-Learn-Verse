@@ -27,6 +27,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.learnverse.data.model.Activity
@@ -47,7 +48,10 @@ fun ActivityDetailScreen(
     authViewModel: AuthViewModel,
     navController: NavController
 ) {
-    var activity by remember { mutableStateOf<Activity?>(null) }
+    // ✅ Observe activity from StateFlow (THIS IS THE KEY CHANGE)
+    val activity by activitiesViewModel.selectedActivity.collectAsState()
+    val isRefreshing by activitiesViewModel.isRefreshing.collectAsState()
+
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
@@ -85,13 +89,11 @@ fun ActivityDetailScreen(
         activitiesViewModel.fetchMyEnrollments()
     }
 
+    // ✅ FIXED: Simplified loading logic
     LaunchedEffect(activityId) {
         try {
             isLoading = true
-            activity = activitiesViewModel.getActivityById(activityId)
-            if (activity == null) {
-                activity = activitiesViewModel.fetchActivityById(activityId)
-            }
+            activitiesViewModel.fetchActivityById(activityId)
             isLoading = false
         } catch (e: Exception) {
             errorMessage = e.message
@@ -107,13 +109,15 @@ fun ActivityDetailScreen(
         uri?.let { activitiesViewModel.uploadBanner(activityId, it, context) }
     }
 
-    if (isLoading) {
+    // ✅ Loading state
+    if (isLoading || (activity == null && !isLoading)) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             CircularProgressIndicator()
         }
         return
     }
 
+    // ✅ Error state
     if (errorMessage != null) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -127,6 +131,7 @@ fun ActivityDetailScreen(
         return
     }
 
+    // ✅ Activity not found
     if (activity == null) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -140,101 +145,88 @@ fun ActivityDetailScreen(
         return
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .nestedScroll(nestedScrollConnection)
-        ) {
-            // Top App Bar
-            TopAppBar(
-                title = { },
-                navigationIcon = {
-                    IconButton(onClick = { navController.navigateUp() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
-                    }
-                },
-                actions = {
-                    if (isTutor) {
-                        var showMenu by remember { mutableStateOf(false) }
-                        Box {
-                            IconButton(onClick = { showMenu = true }) {
-                                Icon(Icons.Default.MoreVert, "Menu")
-                            }
-                            DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
-                                DropdownMenuItem(
-                                    text = { Text("Edit Activity") },
-                                    onClick = {
-                                        showMenu = false
-                                        navController.navigate("create_activity?activityId=$activityId")
-                                    },
-                                    leadingIcon = { Icon(Icons.Default.Edit, null) }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text("Delete Activity") },
-                                    onClick = { showMenu = false },
-                                    leadingIcon = { Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error) }
-                                )
-                            }
+    // ✅ Main Content (activity is guaranteed non-null here)
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .nestedScroll(nestedScrollConnection)
+    ) {
+        // Top App Bar
+        TopAppBar(
+            title = { },
+            navigationIcon = {
+                IconButton(onClick = { navController.navigateUp() }) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+                }
+            },
+            actions = {
+                if (isTutor) {
+                    var showMenu by remember { mutableStateOf(false) }
+                    Box {
+                        IconButton(onClick = { showMenu = true }) {
+                            Icon(Icons.Default.MoreVert, "Menu")
+                        }
+                        DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+                            DropdownMenuItem(
+                                text = { Text("Edit Activity") },
+                                onClick = {
+                                    showMenu = false
+                                    navController.navigate("create_activity?activityId=$activityId")
+                                },
+                                leadingIcon = { Icon(Icons.Default.Edit, null) }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Delete Activity") },
+                                onClick = { showMenu = false },
+                                leadingIcon = { Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error) }
+                            )
                         }
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
-            )
-
-            // Collapsing Banner & Profile
-            CollapsingBannerSection(
-                activity = activity!!,
-                isTutor = isTutor,
-                collapseFraction = collapseFraction,
-                onBannerEdit = { bannerLauncher.launch("image/*") },
-                onProfileClick = { navController.navigate("tutorProfile/${activity!!.tutorId}") }
-            )
-
-            // Tabs
-            TabRow(selectedTabIndex = pagerState.currentPage) {
-                listOf("Info", "Videos", "Meeting", "Reviews").forEachIndexed { index, title ->
-                    Tab(
-                        selected = pagerState.currentPage == index,
-                        onClick = { coroutineScope.launch { pagerState.animateScrollToPage(index) } },
-                        text = { Text(title) }
-                    )
                 }
-            }
+            },
+            colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
+        )
 
-            // Tab Content
-            HorizontalPager(count = 4, state = pagerState, modifier = Modifier.fillMaxSize()) { page ->
-                when (page) {
-                    0 -> ActivityInfoTab(activity!!, isEnrolled, isTutor) {
-                        activitiesViewModel.enrollInActivity(activityId)
-                    }
-                    1 -> VideosTab(activity!!, isTutor, isEnrolled, navController) { }
-                    2 -> MeetingTab(
-                        activity!!, isTutor, isEnrolled, context,
-                        { navController.navigate("edit_meeting/$activityId") }, { })
-                    3 -> ReviewsTab(activity!!, authViewModel, activitiesViewModel)
-                }
+        // Collapsing Banner & Profile
+        CollapsingBannerSection(
+            activity = activity!!, // ✅ Safe because we checked null above
+            isTutor = isTutor,
+            collapseFraction = collapseFraction,
+            onBannerEdit = { bannerLauncher.launch("image/*") },
+            onProfileClick = { navController.navigate("tutorProfile/${activity!!.tutorId}") }
+        )
+
+        // Tabs
+        TabRow(selectedTabIndex = pagerState.currentPage) {
+            listOf("Info", "Videos", "Meeting", "Reviews").forEachIndexed { index, title ->
+                Tab(
+                    selected = pagerState.currentPage == index,
+                    onClick = { coroutineScope.launch { pagerState.animateScrollToPage(index) } },
+                    text = { Text(title) }
+                )
             }
         }
 
-        // FAB
-        if (isTutor) {
-            Column(
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                if (pagerState.currentPage == 1) {
-                    FloatingActionButton(onClick = { navController.navigate("upload_video/$activityId") }) {
-                        Icon(Icons.Default.Add, "Add Video")
-                    }
+        // Tab Content - FABs are handled INSIDE each tab
+        HorizontalPager(count = 4, state = pagerState, modifier = Modifier.fillMaxSize()) { page ->
+            when (page) {
+                0 -> ActivityInfoTab(activity!!, isEnrolled, isTutor) {
+                    activitiesViewModel.enrollInActivity(activityId)
                 }
-                if (pagerState.currentPage == 2) {
-                    FloatingActionButton(onClick = { navController.navigate("add_meeting/$activityId") }) {
-                        Icon(Icons.Default.Link, "Add Meeting")
-                    }
-                }
+                1 -> VideosTab(
+                    activity = activity!!,
+                    isTutor = isTutor,
+                    isEnrolled = isEnrolled,
+                    navController = navController,
+                    viewModel = activitiesViewModel
+                )
+                2 -> MeetingTab(
+                    activity = activity!!,
+                    isTutor = isTutor,
+                    isEnrolled = isEnrolled,
+                    viewModel = activitiesViewModel
+                )
+                3 -> ReviewsTab(activity!!, authViewModel, activitiesViewModel)
             }
         }
     }

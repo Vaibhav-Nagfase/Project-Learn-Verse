@@ -326,19 +326,6 @@ interface ApiService {
     ): Response<Map<String, Any>>
 
     /**
-     * ✅ Upload video to activity
-     */
-    @Multipart
-    @POST("api/tutor/activities/{activityId}/videos")
-    suspend fun uploadVideo(
-        @Path("activityId") activityId: String,
-        @Part video: MultipartBody.Part,
-        @Part("title") title: RequestBody,
-        @Part("description") description: RequestBody?,
-        @Part("order") order: RequestBody?
-    ): Response<Map<String, Any>>
-
-    /**
      * ✅ Delete video from activity
      */
     @DELETE("api/tutor/activities/{activityId}/videos/{videoId}")
@@ -348,15 +335,6 @@ interface ApiService {
     ): Response<Unit>
 
     /**
-     * ✅ Add/Update meeting link
-     */
-    @POST("api/tutor/activities/{activityId}/meeting")
-    suspend fun addOrUpdateMeetingLink(
-        @Path("activityId") activityId: String,
-        @Body meetingData: Map<String, String>
-    ): Response<Map<String, Any>>
-
-    /**
      * ✅ Delete meeting link
      */
     @DELETE("api/tutor/activities/{activityId}/meeting")
@@ -364,21 +342,82 @@ interface ApiService {
         @Path("activityId") activityId: String
     ): Response<Unit>
 
-    /**
-     * ✅ Get activity videos (for enrolled users)
-     */
-    @GET("api/activities/{activityId}/videos")
-    suspend fun getActivityVideos(
-        @Path("activityId") activityId: String
-    ): Response<List<Activity.VideoContent.Video>>
 
     /**
-     * ✅ Get activity meeting link (for enrolled users)
+     * ✅ Add video with URL (no file upload)
      */
-    @GET("api/activities/{activityId}/meeting")
-    suspend fun getActivityMeeting(
-        @Path("activityId") activityId: String
-    ): Response<Activity.VideoContent>
+    @POST("api/tutor/activities/{activityId}/videos")
+    suspend fun addVideoWithUrl(
+        @Path("activityId") activityId: String,
+        @Body videoData: @JvmSuppressWildcards Map<String, Any>
+    ): Response<Map<String, Any>>
+
+    /**
+     * ✅ Upload video file to activity
+     */
+    @Multipart
+    @POST("api/tutor/activities/{activityId}/videos/upload")
+    suspend fun uploadVideoFile(
+        @Path("activityId") activityId: String,
+        @Part file: MultipartBody.Part,
+        @Part("title") title: RequestBody,
+        @Part("description") description: RequestBody,
+        @Part("order") order: RequestBody,
+        @Part("isPreview") isPreview: RequestBody
+    ): Response<Map<String, Any>>
+
+    /**
+     * ✅ Update video details
+     */
+    @PUT("api/tutor/activities/{activityId}/videos/{videoId}")
+    suspend fun updateVideo(
+        @Path("activityId") activityId: String,
+        @Path("videoId") videoId: String,
+        @Body videoData: @JvmSuppressWildcards Map<String, Any?>  // ✅ Fixed
+    ): Response<Map<String, Any>>
+
+
+    /**
+     * ✅ Upload resource to video
+     */
+    @Multipart
+    @POST("api/tutor/activities/{activityId}/videos/{videoId}/resources/upload")
+    suspend fun uploadResourceFile(
+        @Path("activityId") activityId: String,
+        @Path("videoId") videoId: String,
+        @Part file: MultipartBody.Part,
+        @Part("type") type: RequestBody,
+        @Part("title") title: RequestBody
+    ): Response<Map<String, Any>>
+
+    /**
+     * ✅ Add resource with URL
+     */
+    @POST("api/tutor/activities/{activityId}/videos/{videoId}/resources")
+    suspend fun addResourceWithUrl(
+        @Path("activityId") activityId: String,
+        @Path("videoId") videoId: String,
+        @Body resourceData: Map<String, String>
+    ): Response<Map<String, Any>>
+
+    /**
+     * ✅ Delete resource
+     */
+    @DELETE("api/tutor/activities/{activityId}/videos/{videoId}/resources")
+    suspend fun deleteResource(
+        @Path("activityId") activityId: String,
+        @Path("videoId") videoId: String,
+        @Query("url") resourceUrl: String
+    ): Response<Unit>
+
+    /**
+     * ✅ Update meeting details (changed from POST to PUT)
+     */
+    @PUT("api/tutor/activities/{activityId}/meeting")
+    suspend fun updateMeetingDetails(
+        @Path("activityId") activityId: String,
+        @Body meetingData: Map<String, String>
+    ): Response<Map<String, Any>>
 
     /**
      * Get complete home feed

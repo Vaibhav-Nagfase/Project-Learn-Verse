@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
@@ -26,6 +27,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import com.example.learnverse.data.model.Activity
 import com.example.learnverse.data.model.CommunityPost
 import com.example.learnverse.data.model.FollowStats
 import com.example.learnverse.viewmodel.*
@@ -33,8 +35,10 @@ import com.example.learnverse.ui.screen.community.CommunityPostCard
 import com.example.learnverse.data.remote.ApiClient
 import com.example.learnverse.data.repository.AuthRepository
 import com.example.learnverse.data.repository.CommunityRepository
+import com.google.accompanist.pager.*
+import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalPagerApi::class)
 @Composable
 fun TutorProfileScreen(
     tutorId: String,
@@ -64,30 +68,10 @@ fun TutorProfileScreen(
     val uiState by tutorProfileViewModel.uiState.collectAsStateWithLifecycle()
     val currentUserId by authViewModel.currentUserId.collectAsStateWithLifecycle()
 
-    // --- Tutor Details (from ActivitiesViewModel) ---
-    val tutorActivities = activitiesViewModel.activities.collectAsState().value
-        .filter { it.tutorId == tutorId }
-    val tutorInfo = tutorActivities.firstOrNull()
-    val instructorDetails = tutorInfo?.instructorDetails
-
-    val listState = rememberLazyListState()
-    var postToDelete by remember { mutableStateOf<CommunityPost?>(null) }
 
     // Load tutor posts + profile
     LaunchedEffect(tutorId) {
         tutorProfileViewModel.loadTutorProfile(tutorId)
-    }
-
-    // Infinite scroll for posts
-    LaunchedEffect(listState) {
-        snapshotFlow { listState.layoutInfo.visibleItemsInfo }
-            .collect { visibleItems ->
-                val lastVisibleItemIndex = visibleItems.lastOrNull()?.index ?: -1
-                val totalItemCount = listState.layoutInfo.totalItemsCount
-                if (lastVisibleItemIndex >= totalItemCount - 2 && totalItemCount > 0 && uiState is TutorProfileUiState.Success) {
-                    tutorProfileViewModel.loadMoreTutorPosts(tutorId)
-                }
-            }
     }
 
     Scaffold(
@@ -120,187 +104,285 @@ fun TutorProfileScreen(
                 }
 
                 is TutorProfileUiState.Success -> {
-                    LazyColumn(
-                        state = listState,
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(bottom = 32.dp)
-                    ) {
-                        // --- Header Section (Enhanced UI) ---
-                        item {
-                            AnimatedVisibility(
-                                visible = true,
-                                enter = fadeIn() + slideInVertically()
+
+                    // --- Data Caching Logic (Unchanged) ---
+                    val feedActivities by activitiesViewModel.activities.collectAsStateWithLifecycle()
+                    val homeFeed by activitiesViewModel.homeFeed.collectAsStateWithLifecycle()
+                    val allActivities = remember(feedActivities, homeFeed) {
+                        buildList {
+                            addAll(feedActivities)
+                            homeFeed?.let {
+                                addAll(it.recommended)
+                                addAll(it.popular)
+                                addAll(it.topRated)
+                                addAll(it.newActivities)
+                                addAll(it.featured)
+                            }
+                        }.distinctBy { it.id }
+                    }
+                    val tutorActivities = allActivities.filter { it.tutorId == tutorId }
+                    val tutorInfo = tutorActivities.firstOrNull()
+                    val instructorDetails = tutorInfo?.instructorDetails
+                    val posts = state.posts
+                    val tutorName = tutorInfo?.tutorName ?: posts.firstOrNull()?.authorName ?: "Tutor"
+                    // --- End Data Caching Logic ---
+
+
+                    // --- Tab Layout (Unchanged) ---
+                    val tabs = listOf("About", "Posts")
+                    val pagerState = rememberPagerState()
+                    val coroutineScope = rememberCoroutineScope()
+
+                    Column(modifier = Modifier.fillMaxSize()) {
+
+                        // Header section
+                        AnimatedVisibility(
+                            visible = true,
+                            enter = fadeIn() + slideInVertically()
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(280.dp)
+                                    .background(
+                                        Brush.verticalGradient(
+                                            listOf(
+                                                MaterialTheme.colorScheme.primaryContainer,
+                                                MaterialTheme.colorScheme.surface
+                                            )
+                                        )
+                                    ),
+                                contentAlignment = Alignment.Center
                             ) {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(280.dp)
-                                        .background(
-                                            Brush.verticalGradient(
-                                                listOf(
-                                                    MaterialTheme.colorScheme.primaryContainer,
-                                                    MaterialTheme.colorScheme.surface
-                                                )
-                                            )
-                                        ),
-                                    contentAlignment = Alignment.Center
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(16.dp)
                                 ) {
-                                    Column(
-                                        horizontalAlignment = Alignment.CenterHorizontally,
-                                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                                    ) {
-                                        AsyncImage(
-                                            model = instructorDetails?.profileImage,
-                                            contentDescription = "Tutor Profile",
-                                            modifier = Modifier
-                                                .size(120.dp)
-                                                .clip(CircleShape)
-                                                .border(
-                                                    4.dp,
-                                                    MaterialTheme.colorScheme.surface,
-                                                    CircleShape
-                                                ),
-                                            contentScale = ContentScale.Crop
-                                        )
+                                    AsyncImage(
+                                        model = instructorDetails?.profileImage,
+                                        contentDescription = "Tutor Profile",
+                                        modifier = Modifier
+                                            .size(120.dp)
+                                            .clip(CircleShape)
+                                            .border(
+                                                4.dp,
+                                                MaterialTheme.colorScheme.surface,
+                                                CircleShape
+                                            ),
+                                        contentScale = ContentScale.Crop
+                                    )
 
-                                        Text(
-                                            text = tutorInfo?.tutorName ?: "Unknown Tutor",
-                                            style = MaterialTheme.typography.headlineMedium,
-                                            fontWeight = FontWeight.Bold
-                                        )
+                                    Text(
+                                        text = tutorName,
+                                        style = MaterialTheme.typography.headlineMedium,
+                                        fontWeight = FontWeight.Bold
+                                    )
 
-                                        // Combined Stats (Follow + Social Proof)
-                                        Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+                                    Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+                                        StatItem(
+                                            icon = Icons.Default.People,
+                                            value = "${state.followStats?.followersCount ?: 0}",
+                                            label = "Followers"
+                                        )
+                                        StatItem(
+                                            icon = Icons.Default.PersonAdd,
+                                            value = "${state.followStats?.followingCount ?: 0}",
+                                            label = "Following"
+                                        )
+                                        instructorDetails?.socialProof?.let { proof ->
                                             StatItem(
-                                                icon = Icons.Default.People,
-                                                value = "${state.followStats?.followersCount ?: 0}",
-                                                label = "Followers"
+                                                icon = Icons.Default.School,
+                                                value = "${proof.totalStudentsTaught ?: 0}",
+                                                label = "Students"
                                             )
                                             StatItem(
-                                                icon = Icons.Default.PersonAdd,
-                                                value = "${state.followStats?.followingCount ?: 0}",
-                                                label = "Following"
+                                                icon = Icons.Default.MenuBook,
+                                                value = "${proof.coursesCount ?: 0}",
+                                                label = "Courses"
                                             )
-                                            instructorDetails?.socialProof?.let { proof ->
-                                                StatItem(
-                                                    icon = Icons.Default.School,
-                                                    value = "${proof.totalStudentsTaught ?: 0}",
-                                                    label = "Students"
-                                                )
-                                            }
                                         }
+                                    }
 
-                                        // Follow/Unfollow Button
-                                        if (currentUserId != null && tutorId != currentUserId) {
-                                            Button(
-                                                onClick = {
-                                                    if (state.isCurrentUserFollowing)
-                                                        tutorProfileViewModel.unfollowThisTutor()
-                                                    else tutorProfileViewModel.followThisTutor()
-                                                }
-                                            ) {
-                                                Text(if (state.isCurrentUserFollowing) "Unfollow" else "Follow")
+                                    // Follow Button (Unchanged)
+                                    if (currentUserId != null && tutorId != currentUserId) {
+                                        OutlinedButton(
+                                            onClick = {
+                                                if (state.isCurrentUserFollowing)
+                                                    tutorProfileViewModel.unfollowThisTutor()
+                                                else tutorProfileViewModel.followThisTutor()
                                             }
+                                        ) {
+                                            Text(if (state.isCurrentUserFollowing) "Unfollow" else "Follow")
                                         }
                                     }
                                 }
                             }
                         }
 
-                        // --- Tutor Bio / Details Section ---
-                        instructorDetails?.bio?.let { bio ->
-                            item { ProfileSection("About") { Text(bio) } }
-                        }
-                        instructorDetails?.qualifications?.let { qualifications ->
-                            if (qualifications.isNotEmpty()) {
-                                item {
-                                    ProfileSection("Qualifications") {
-                                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                            qualifications.forEach {
-                                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                                    Icon(
-                                                        Icons.Default.CheckCircle,
-                                                        null,
-                                                        tint = MaterialTheme.colorScheme.primary
-                                                    )
-                                                    Spacer(Modifier.width(8.dp))
-                                                    Text(it)
-                                                }
-                                            }
+                        // TabRow (Unchanged)
+                        TabRow(selectedTabIndex = pagerState.currentPage) {
+                            tabs.forEachIndexed { index, title ->
+                                Tab(
+                                    selected = pagerState.currentPage == index,
+                                    onClick = {
+                                        coroutineScope.launch {
+                                            pagerState.animateScrollToPage(index)
                                         }
-                                    }
-                                }
-                            }
-                        }
-                        instructorDetails?.experience?.let { exp ->
-                            item { ProfileSection("Experience") { Text(exp) } }
-                        }
-                        instructorDetails?.specializations?.let { specializations ->
-                            if (specializations.isNotEmpty()) {
-                                item {
-                                    ProfileSection("Specializations") {
-                                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                            specializations.take(5).forEach {
-                                                SuggestionChip(onClick = {}, label = { Text(it) })
-                                            }
-                                        }
-                                    }
-                                }
+                                    },
+                                    text = { Text(title) }
+                                )
                             }
                         }
 
-                        // --- Tutor Posts ---
-                        if (state.posts.isNotEmpty()) {
-                            item {
-                                ProfileSection("Posts") { Divider(Modifier.padding(vertical = 8.dp)) }
-                            }
-                            items(state.posts, key = { it.id }) { post ->
-                                val isLiked =
-                                    currentUserId != null && post.likedBy.contains(currentUserId)
-                                CommunityPostCard(
-                                    post = post,
+                        // HorizontalPager
+                        HorizontalPager(
+                            count = tabs.size,
+                            state = pagerState,
+                            modifier = Modifier.fillMaxSize()
+                        ) { page ->
+                            when (page) {
+                                0 -> TutorAboutTab(
+                                    instructorDetails = instructorDetails,
+                                    tutorActivities = tutorActivities,
+                                    tutorName = tutorName,
+                                    navController = navController // ✅ Pass NavController
+                                )
+                                1 -> TutorPostsTab(
+                                    posts = posts,
                                     currentUserId = currentUserId,
-                                    isLiked = isLiked,
-                                    isFollowed = state.isCurrentUserFollowing,
-                                    onLikeClick = { tutorProfileViewModel.likeOrUnlikePost(post.id) },
-                                    onCommentClick = { navController.navigate("postDetail/${post.id}") },
-                                    onFollowClick = {},
-                                    onUnfollowClick = {},
-                                    onAuthorClick = {},
-                                    onPostClick = {},
-                                    onEditClick = { navController.navigate("createPost?postId=${post.id}") },
-                                    onDeleteClick = { postToDelete = post }
+                                    isCurrentUserFollowing = state.isCurrentUserFollowing,
+                                    navController = navController,
+                                    viewModel = tutorProfileViewModel
+                                    // --- ⛔️ DELETED `onDeleteClick` ---
                                 )
                             }
-                        } else {
-                            item {
-                                Text(
-                                    "This tutor hasn't posted anything yet.",
-                                    modifier = Modifier.padding(16.dp),
-                                    style = MaterialTheme.typography.bodyMedium
-                                )
-                            }
-                        }
-
-                        // --- Courses Section ---
-                        item {
-                            ProfileSection("Courses by ${tutorInfo?.tutorName ?: "Tutor"}") {
-                                Text("${tutorActivities.size} courses available")
-                            }
-                        }
-                        items(tutorActivities) { activity ->
-                            TutorCourseCard(
-                                activity = activity,
-                                onClick = { navController.navigate("activityDetail/${activity.id}") }
-                            )
                         }
                     }
                 }
             }
         }
     }
+
 }
 
+@Composable
+fun TutorAboutTab(
+    instructorDetails: com.example.learnverse.data.model.Activity.InstructorDetails?,
+    tutorActivities: List<Activity>,
+    tutorName: String,
+    navController: NavController // ✅ Added NavController parameter
+) {
+    LazyColumn(
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        // --- Info Sections (Unchanged) ---
+        instructorDetails?.bio?.let { bio ->
+            item { ProfileSection("About") { Text(bio) } }
+        }
+        instructorDetails?.qualifications?.let { qualifications ->
+            if (qualifications.isNotEmpty()) {
+                item {
+                    ProfileSection("Qualifications") {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            qualifications.forEach {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        Icons.Default.CheckCircle,
+                                        null,
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
+                                    Spacer(Modifier.width(8.dp))
+                                    Text(it)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        instructorDetails?.experience?.let { exp ->
+            item { ProfileSection("Experience") { Text(exp) } }
+        }
+        instructorDetails?.specializations?.let { specializations ->
+            if (specializations.isNotEmpty()) {
+                item {
+                    ProfileSection("Specializations") {
+                        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            // Changed forEach to items() for LazyRow
+                            items(specializations) { specialization ->
+                                SuggestionChip(onClick = {}, label = { Text(specialization) })
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // --- Courses Section ---
+        item {
+            ProfileSection("Courses by $tutorName") {
+                Text("${tutorActivities.size} courses available")
+            }
+        }
+        items(tutorActivities) { activity ->
+            TutorCourseCard(
+                activity = activity,
+                // ✅ Pass the navigation click action
+                onClick = { navController.navigate("activityDetail/${activity.id}") }
+            )
+        }
+    }
+}
+
+@Composable
+fun TutorPostsTab(
+    posts: List<CommunityPost>,
+    currentUserId: String?,
+    isCurrentUserFollowing: Boolean,
+    navController: NavController,
+    viewModel: TutorProfileViewModel
+    // --- ⛔️ DELETED `onDeleteClick` ---
+) {
+    val listState = rememberLazyListState()
+
+    LazyColumn(
+        state = listState,
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        if (posts.isNotEmpty()) {
+            items(posts, key = { it.id }) { post ->
+                val isLiked =
+                    currentUserId != null && post.likedBy.contains(currentUserId)
+                CommunityPostCard(
+                    post = post,
+                    currentUserId = currentUserId,
+                    isLiked = isLiked,
+                    isFollowed = isCurrentUserFollowing,
+                    onLikeClick = { viewModel.likeOrUnlikePost(post.id) },
+                    onCommentClick = { navController.navigate("postDetail/${post.id}") },
+                    onFollowClick = {},
+                    onUnfollowClick = {},
+                    onAuthorClick = {},
+                    onPostClick = {},
+                    onEditClick = { navController.navigate("createPost?postId=${post.id}") },
+                    onDeleteClick = {} // ✅ Set to an empty lambda
+                )
+            }
+        } else {
+            item {
+                Text(
+                    "This tutor hasn't posted anything yet.",
+                    modifier = Modifier.padding(16.dp),
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+        }
+    }
+}
+
+// --- Reusable Helper Composables (Unchanged) ---
 
 @Composable
 fun StatItem(icon: androidx.compose.ui.graphics.vector.ImageVector, value: String, label: String) {
@@ -312,7 +394,7 @@ fun StatItem(icon: androidx.compose.ui.graphics.vector.ImageVector, value: Strin
         Text(value, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
         Text(
             label,
-            style = MaterialTheme.typography.bodySmall,
+            style = MaterialTheme. typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
