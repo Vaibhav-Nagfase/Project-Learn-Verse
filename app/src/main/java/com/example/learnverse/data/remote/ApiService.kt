@@ -118,7 +118,7 @@ interface ApiService {
     @PUT("api/tutor-verification/admin/approve/{verificationId}")
     suspend fun approveVerification(
         @Path("verificationId") verificationId: String
-    ): Response<Unit> // Assuming a simple success response
+    ): Response<Map<String, Any>>
 
     @PUT("api/tutor-verification/admin/reject/{verificationId}")
     suspend fun rejectVerification(
@@ -126,9 +126,11 @@ interface ApiService {
         @Query("reason") reason: String
     ): Response<Unit>
 
-    // This is a special function to view the document image from a full URL
-    @GET
-    suspend fun getDocumentImage(@Url url: String): Response<okhttp3.ResponseBody>
+    @GET("api/tutor-verification/admin/verification/{verificationId}")
+    suspend fun getVerificationDetails(
+        @Path("verificationId") verificationId: String
+    ): Response<PendingVerification>
+
 
     // --- ENROLLMENT ENDPOINTS ---
 

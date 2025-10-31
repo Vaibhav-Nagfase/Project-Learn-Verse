@@ -33,14 +33,4 @@ class AdminRepository(private val api: ApiService) {
             throw Exception("Failed to reject verification")
         }
     }
-
-    // The 'token' parameter has been removed.
-    suspend fun getDocument(url: String): ResponseBody {
-        // The "Bearer $token" argument has been removed.
-        val response = api.getDocumentImage(url)
-        if (response.isSuccessful && response.body() != null) {
-            return response.body()!!
-        }
-        throw Exception("Failed to download document")
-    }
 }

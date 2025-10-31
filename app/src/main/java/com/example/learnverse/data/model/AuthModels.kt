@@ -37,6 +37,8 @@ data class AuthResponse(
     val tokenType: String,
     val expiresIn: Int,
     val role: String,
-    val userId: String
+    val userId: String,
+    val name: String,
+    val email: String
 )
 

@@ -1,4 +1,4 @@
-// ReviewsTab.kt
+// ReviewsTab.kt - COMPLETE FIXED VERSION
 package com.example.learnverse.ui.screen.detail.tabs
 
 import androidx.compose.foundation.background
@@ -31,6 +31,16 @@ fun ReviewsTab(
     val isLoadingReviews by activitiesViewModel.isLoadingReviews.collectAsState()
     val hasUserReviewed by activitiesViewModel.hasUserReviewed.collectAsState()
     val currentUserId by authViewModel.currentUserId.collectAsState()
+    val userRole by authViewModel.currentUserRole.collectAsState()
+
+    // ✅ Check if user is enrolled
+    val isEnrolled = activitiesViewModel.isEnrolled(activity.id ?: "")
+
+    // ✅ Check if current user is the tutor of this activity
+    val isTutor = userRole == "TUTOR" && activity.tutorId == currentUserId
+
+    // ✅ User can review only if: enrolled AND not the tutor AND hasn't reviewed yet
+    val canReview = isEnrolled && !isTutor && !hasUserReviewed
 
     var showAddReview by remember { mutableStateOf(false) }
     var showEditReview by remember { mutableStateOf<Review?>(null) }
@@ -54,60 +64,167 @@ fun ReviewsTab(
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // Rating Summary Card
+        // ✅ Rating Summary Card (Improved Design)
         item {
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer
-                )
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
             ) {
-                Row(
-                    modifier = Modifier.padding(16.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                Column(
+                    modifier = Modifier.padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    Column {
-                        Text(
-                            text = String.format("%.1f", averageRating),
-                            style = MaterialTheme.typography.displayMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            repeat(5) { index ->
-                                Icon(
-                                    if (index < averageRating.toInt()) Icons.Filled.Star else Icons.Filled.StarBorder,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(20.dp)
-                                )
+                    // Rating display
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Left side - Rating score
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                text = if (averageRating > 0) String.format("%.1f", averageRating) else "—",
+                                style = MaterialTheme.typography.displayLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(2.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                repeat(5) { index ->
+                                    Icon(
+                                        if (index < averageRating.toInt()) Icons.Filled.Star else Icons.Filled.StarBorder,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            }
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                "$totalReviews ${if (totalReviews == 1L) "review" else "reviews"}",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        }
+
+                        // Right side - Add review button or status
+                        Column(
+                            horizontalAlignment = Alignment.End,
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            when {
+                                // ✅ Tutor viewing own activity
+                                isTutor -> {
+                                    OutlinedCard(
+                                        colors = CardDefaults.outlinedCardColors(
+                                            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)
+                                        )
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Icon(
+                                                Icons.Default.Info,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(16.dp),
+                                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                            Text(
+                                                "Your Activity",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                    }
+                                }
+
+                                // ✅ User already reviewed
+                                hasUserReviewed -> {
+                                    OutlinedCard(
+                                        colors = CardDefaults.outlinedCardColors(
+                                            containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.3f)
+                                        )
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Icon(
+                                                Icons.Default.CheckCircle,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(16.dp),
+                                                tint = MaterialTheme.colorScheme.tertiary
+                                            )
+                                            Text(
+                                                "You reviewed this",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onTertiaryContainer
+                                            )
+                                        }
+                                    }
+                                }
+
+                                // ✅ Not enrolled
+                                !isEnrolled -> {
+                                    OutlinedCard(
+                                        colors = CardDefaults.outlinedCardColors(
+                                            containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.2f)
+                                        )
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Icon(
+                                                Icons.Default.Lock,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(16.dp),
+                                                tint = MaterialTheme.colorScheme.error
+                                            )
+                                            Text(
+                                                "Enroll to review",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onErrorContainer
+                                            )
+                                        }
+                                    }
+                                }
+
+                                // ✅ Can review
+                                canReview -> {
+                                    Button(
+                                        onClick = { showAddReview = true },
+                                        modifier = Modifier.height(40.dp)
+                                    ) {
+                                        Icon(
+                                            Icons.Default.Add,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Spacer(Modifier.width(4.dp))
+                                        Text("Write Review")
+                                    }
+                                }
                             }
                         }
-                        Text(
-                            "$totalReviews reviews",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-
-                    Button(
-                        onClick = { showAddReview = true },
-                        enabled = !hasUserReviewed // Disable if already reviewed
-                    ) {
-                        Icon(
-                            if (hasUserReviewed) Icons.Default.CheckCircle else Icons.Default.Add,
-                            contentDescription = null
-                        )
-                        Spacer(Modifier.width(4.dp))
-                        Text(if (hasUserReviewed) "Reviewed" else "Add Review")
                     }
                 }
             }
         }
 
-        // Loading state
         if (isLoadingReviews) {
             item {
                 Box(
@@ -121,39 +238,45 @@ fun ReviewsTab(
             }
         }
 
-        // Empty state
         if (!isLoadingReviews && reviews.isEmpty()) {
             item {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 32.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                    )
                 ) {
-                    Icon(
-                        Icons.Default.RateReview,
-                        contentDescription = null,
-                        modifier = Modifier.size(64.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(Modifier.height(16.dp))
-                    Text(
-                        "No reviews yet",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        "Be the first to review!",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 48.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.RateReview,
+                            contentDescription = null,
+                            modifier = Modifier.size(72.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                        )
+                        Text(
+                            "No reviews yet",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            if (canReview) "Be the first to share your experience!"
+                            else "Reviews from enrolled students will appear here",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                        )
+                    }
                 }
             }
         }
 
-        // Reviews list
-        if (!isLoadingReviews) {
+        if (!isLoadingReviews && reviews.isNotEmpty()) {
             items(reviews.size) { index ->
                 ReviewItem(
                     review = reviews[index],
@@ -163,10 +286,12 @@ fun ReviewsTab(
                 )
             }
         }
+
+        // Bottom padding
+        item { Spacer(Modifier.height(16.dp)) }
     }
 
-    // Add Review Dialog
-    if (showAddReview) {
+    if (showAddReview && canReview) {
         AddReviewDialog(
             onDismiss = { showAddReview = false },
             onSubmit = { rating, feedback ->

@@ -89,67 +89,6 @@ class AuthViewModel(
         }
     }
 
-    private fun checkCurrentUser() {
-        viewModelScope.launch {
-            _authState.value = AuthState.Loading
-            // This is the one place we need to get the token, just to see if it exists.
-            val token = repository.getToken().firstOrNull()
-
-            if (token.isNullOrBlank()) {
-                _authState.value = AuthState.Unauthenticated
-                return@launch
-            }
-
-            try {
-                val decodedJwt = JWT(token)
-                val userEmail = decodedJwt.getClaim("email").asString()
-                val userRole = decodedJwt.getClaim("role").asString()
-
-                _currentUserId.value = decodedJwt.subject // The 'sub' claim is usually the ID
-                _currentUserName.value = decodedJwt.getClaim("name").asString()
-
-                _currentUserEmail.value = userEmail
-                _currentUserRole.value = userRole
-
-                if (userRole == "ADMIN") {
-                    _authState.value = AuthState.Authenticated
-                    return@launch
-                }
-
-                if (userRole == "TUTOR") {
-                    _authState.value = AuthState.Authenticated
-                    return@launch
-                }
-
-                // --- NEW: Check for user profile after verifying token ---
-                val userProfile = profileRepository.getProfile()
-                _hasProfile.value = userProfile != null
-
-
-                if (userEmail != null) {
-                    try {
-                        // The token is no longer passed to the repository.
-                        _verificationStatus.value = tutorRepository.getTutorVerificationStatus(userEmail)
-                    } catch (e: Exception) {
-                        println("Could not get tutor status (user may not have applied yet): ${e.message}")
-                        _verificationStatus.value = null
-                    }
-                }
-
-                // The token is no longer passed to the repository.
-                val interestsResponse = repository.getUserInterests()
-                _userInterests.value = interestsResponse.interests
-                if (interestsResponse.interestCount == 0) {
-                    _authState.value = AuthState.NeedsInterestSelection
-                } else {
-                    _authState.value = AuthState.Authenticated
-                }
-            } catch (e: Exception) {
-                logout()
-            }
-        }
-    }
-
     fun saveInterests(interests: List<String>) {
         viewModelScope.launch {
             interestSelectionCancelled = false
@@ -240,14 +179,46 @@ class AuthViewModel(
         }
     }
 
-    // Login and Register methods remain largely the same, as they don't use a pre-existing token
     fun login(email: String, password: String) {
         viewModelScope.launch {
             _loginUiState.value = LoginUiState.Loading
             try {
-                repository.login(LoginRequest(email, password))
+                // ✅ GET RESPONSE WITH USER DATA
+                val response = repository.login(LoginRequest(email, password))
+
+                // ✅ SET STATES DIRECTLY FROM RESPONSE (no JWT parsing needed)
+                _currentUserId.value = response.userId
+                _currentUserName.value = response.name
+                _currentUserEmail.value = response.email
+                _currentUserRole.value = response.role
+
                 _loginUiState.value = LoginUiState.Idle
-                checkCurrentUser()
+
+                // ✅ Handle role-based navigation
+                when (response.role) {
+                    "ADMIN" -> {
+                        _authState.value = AuthState.Authenticated
+                    }
+                    "TUTOR" -> {
+                        _authState.value = AuthState.Authenticated
+                    }
+                    else -> { // USER
+                        // Check interests
+                        try {
+                            val interestsResponse = repository.getUserInterests()
+                            _userInterests.value = interestsResponse.interests
+
+                            if (interestsResponse.interestCount == 0) {
+                                _authState.value = AuthState.NeedsInterestSelection
+                            } else {
+                                _authState.value = AuthState.Authenticated
+                            }
+                        } catch (e: Exception) {
+                            _authState.value = AuthState.Authenticated
+                        }
+                    }
+                }
+
             } catch (e: Exception) {
                 _loginUiState.value = LoginUiState.Error(e.message ?: "An unknown error occurred")
             }
@@ -258,12 +229,70 @@ class AuthViewModel(
         viewModelScope.launch {
             _loginUiState.value = LoginUiState.Loading
             try {
-                repository.registerUser(RegisterRequest(name, email, password))
+                // ✅ GET RESPONSE WITH USER DATA
+                val response = repository.registerUser(RegisterRequest(name, email, password))
+
+                // ✅ SET STATES DIRECTLY FROM RESPONSE
+                _currentUserId.value = response.userId
+                _currentUserName.value = response.name
+                _currentUserEmail.value = response.email
+                _currentUserRole.value = response.role
+
                 _loginUiState.value = LoginUiState.Idle
                 _authState.value = AuthState.NeedsInterestSelection
                 _hasProfile.value = false
+
             } catch (e: Exception) {
                 _loginUiState.value = LoginUiState.Error(e.message ?: "Registration failed")
+            }
+        }
+    }
+
+    /**
+     * ✅ KEEP THIS: Called on app startup to restore session from stored JWT
+     */
+    private fun checkCurrentUser() {
+        viewModelScope.launch {
+            _authState.value = AuthState.Loading
+            val token = repository.getToken().firstOrNull()
+
+            if (token.isNullOrBlank()) {
+                _authState.value = AuthState.Unauthenticated
+                return@launch
+            }
+
+            try {
+                // Parse JWT to restore session
+                val decodedJwt = JWT(token)
+                val userEmail = decodedJwt.getClaim("email").asString()
+                val userRole = decodedJwt.getClaim("role").asString()
+
+                _currentUserId.value = decodedJwt.subject
+                _currentUserName.value = decodedJwt.getClaim("name").asString()
+                _currentUserEmail.value = userEmail
+                _currentUserRole.value = userRole
+
+                if (userRole == "ADMIN" || userRole == "TUTOR") {
+                    _authState.value = AuthState.Authenticated
+                    return@launch
+                }
+
+                // Check interests for regular users
+                try {
+                    val interestsResponse = repository.getUserInterests()
+                    _userInterests.value = interestsResponse.interests
+
+                    if (interestsResponse.interestCount == 0) {
+                        _authState.value = AuthState.NeedsInterestSelection
+                    } else {
+                        _authState.value = AuthState.Authenticated
+                    }
+                } catch (e: Exception) {
+                    _authState.value = AuthState.Authenticated
+                }
+
+            } catch (e: Exception) {
+                logout()
             }
         }
     }

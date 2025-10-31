@@ -79,25 +79,6 @@ class AdminViewModel(
         }
     }
 
-    fun viewDocument(url: String) {
-        viewModelScope.launch {
-            _isDocumentLoading.value = true
-            _documentToViewUrl.value = url
-            _documentBitmap.value = null // Clear previous image
-            // The token fetching logic has been removed.
-            try {
-                // The token is no longer passed to the repository.
-                val responseBody = adminRepository.getDocument(url)
-                val bytes = responseBody.bytes()
-                val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
-                _documentBitmap.value = bitmap.asImageBitmap()
-            } catch (e: Exception) {
-                println("Failed to load document: ${e.message}")
-            } finally {
-                _isDocumentLoading.value = false
-            }
-        }
-    }
 
     fun dismissDocumentView() {
         _documentToViewUrl.value = null
