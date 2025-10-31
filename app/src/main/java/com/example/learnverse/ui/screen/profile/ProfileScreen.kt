@@ -51,6 +51,7 @@ fun ProfileScreen(
             is UiState.Success -> {
                 snackbarHostState.showSnackbar(state.message)
                 isEditMode = false
+                authViewModel.onProfileSetupComplete()
                 profileViewModel.loadProfile() // Reload to show updated data
                 profileViewModel.resetUiState()
             }

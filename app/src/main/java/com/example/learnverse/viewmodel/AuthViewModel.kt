@@ -277,6 +277,13 @@ class AuthViewModel(
                     return@launch
                 }
 
+                try {
+                    val userProfile = profileRepository.getProfile()
+                    _hasProfile.value = userProfile != null
+                } catch (e: Exception) {
+                    _hasProfile.value = false
+                }
+
                 // Check interests for regular users
                 try {
                     val interestsResponse = repository.getUserInterests()
