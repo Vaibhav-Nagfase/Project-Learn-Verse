@@ -136,6 +136,7 @@ fun TutorProfileScreen(
                     Column(modifier = Modifier.fillMaxSize()) {
 
                         // Header section
+                        // Header section
                         AnimatedVisibility(
                             visible = true,
                             enter = fadeIn() + slideInVertically()
@@ -143,7 +144,8 @@ fun TutorProfileScreen(
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(280.dp)
+                                    // 1. ✅ FIX: Let the box wrap its content instead of a fixed height
+                                    .wrapContentHeight()
                                     .background(
                                         Brush.verticalGradient(
                                             listOf(
@@ -156,7 +158,9 @@ fun TutorProfileScreen(
                             ) {
                                 Column(
                                     horizontalAlignment = Alignment.CenterHorizontally,
-                                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                                    // 2. ✅ FIX: Add some vertical padding
+                                    modifier = Modifier.padding(vertical = 24.dp)
                                 ) {
                                     AsyncImage(
                                         model = instructorDetails?.profileImage,
@@ -203,9 +207,9 @@ fun TutorProfileScreen(
                                         }
                                     }
 
-                                    // Follow Button (Unchanged)
+                                    // This button will now be visible
                                     if (currentUserId != null && tutorId != currentUserId) {
-                                        OutlinedButton(
+                                        Button(
                                             onClick = {
                                                 if (state.isCurrentUserFollowing)
                                                     tutorProfileViewModel.unfollowThisTutor()
