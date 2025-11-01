@@ -80,8 +80,8 @@ dependencies {
     implementation("com.google.accompanist:accompanist-pager:0.36.0")
     implementation("com.google.accompanist:accompanist-pager-indicators:0.36.0")
 
-
-
+    // Coil for image loading (you already have this)
+    implementation("io.coil-kt:coil-compose:2.7.0")
     // --- DEPENDENCY CLEANUP ---
 
     // Keep the navigation dependency (its version is managed separately)

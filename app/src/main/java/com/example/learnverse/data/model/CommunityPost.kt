@@ -7,6 +7,7 @@ data class CommunityPost(
     val authorId: String,
     val authorName: String,
     val authorType: String, // Should be "TUTOR"
+    val authorProfilePicture: String?,
     val content: String?, // Content can be empty if there's only media
     val mediaUrl: String?,
     val mediaType: String, // "image", "video", "none"
@@ -23,6 +24,7 @@ data class Comment(
     val authorId: String,
     val authorName: String,
     val authorType: String, // "USER" or "TUTOR"
+    val authorProfilePicture: String?,
     val content: String,
     val likedBy: List<String>, // List of user IDs who liked the comment
     val createdAt: String // Consider converting later

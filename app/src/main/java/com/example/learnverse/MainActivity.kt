@@ -47,13 +47,14 @@ import com.example.learnverse.ui.screen.admin.AdminDashboardScreen
 import com.example.learnverse.ui.screen.auth.InterestSelectionDialog
 import com.example.learnverse.ui.screen.auth.LoginScreen
 import com.example.learnverse.ui.screen.auth.SignUpScreen
-import com.example.learnverse.ui.screen.community.CreatePostScreen
+import com.example.learnverse.ui.screen.community.EnhancedCreatePostScreen
 import com.example.learnverse.ui.screen.chatbot.ChatScreen
 import com.example.learnverse.ui.screen.detail.ActivityDetailScreen
 import com.example.learnverse.ui.screen.enrollment.MyCoursesScreen
 import com.example.learnverse.ui.screen.filter.FilterScreen
 import com.example.learnverse.ui.screen.home.HomeScreen
-import com.example.learnverse.ui.screen.community.DiscoverScreen
+import com.example.learnverse.ui.screen.community.EnhancedCreatePostScreen
+import com.example.learnverse.ui.screen.community.EnhancedDiscoverScreen
 import com.example.learnverse.ui.screen.community.PostDetailScreen
 import com.example.learnverse.ui.screen.interest.InterestManagementScreen
 import com.example.learnverse.ui.screen.profile.ProfileScreen
@@ -229,7 +230,7 @@ fun MainNavGraph(
         }
 
         composable("discover") { // Or whatever name you choose for the feed
-            DiscoverScreen(navController, communityViewModel, authViewModel) // Pass necessary ViewModels
+            EnhancedDiscoverScreen(navController, communityViewModel, authViewModel) // Pass necessary ViewModels
         }
 
         composable(
@@ -383,7 +384,7 @@ fun TutorNavGraph(
             route = "createPost?postId={postId}",
             arguments = listOf(navArgument("postId") { nullable = true; type = NavType.StringType })
         ) { backStackEntry ->
-            CreatePostScreen(
+            EnhancedCreatePostScreen(
                 navController = navController,
                 communityViewModel = communityViewModel,
                 postIdToEdit = backStackEntry.arguments?.getString("postId")

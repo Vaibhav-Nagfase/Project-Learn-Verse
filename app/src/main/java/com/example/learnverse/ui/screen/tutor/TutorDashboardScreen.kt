@@ -19,8 +19,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.learnverse.data.model.Activity
-// Import screens needed for nested navigation
-import com.example.learnverse.ui.screen.community.DiscoverScreen
+import com.example.learnverse.ui.screen.community.EnhancedDiscoverScreen
 import com.example.learnverse.ui.screen.community.MyPostsScreen
 import com.example.learnverse.viewmodel.ActivitiesViewModel
 // Import ViewModels
@@ -92,7 +91,7 @@ fun TutorDashboardScreen(
             }
             // Destination 2: The Discover feed screen
             composable(TutorScreenRoutes.Discover.route) {
-                DiscoverScreen(
+                EnhancedDiscoverScreen(
                     navController = mainNavController, // Pass outer NavController
                     communityViewModel = communityViewModel,
                     authViewModel = authViewModel

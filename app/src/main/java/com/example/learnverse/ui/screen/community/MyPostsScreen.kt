@@ -90,7 +90,7 @@ fun MyPostsScreen(
                         // isFollowed is irrelevant here, isLiked state comes from post data
                         val isLiked = currentUserId != null && post.likedBy.contains(currentUserId)
 
-                        CommunityPostCard(
+                        EnhancedCommunityPostCard(
                             post = post,
                             currentUserId = currentUserId,
                             isLiked = isLiked,

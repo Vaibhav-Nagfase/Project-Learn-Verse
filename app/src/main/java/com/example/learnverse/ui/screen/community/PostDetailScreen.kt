@@ -35,6 +35,7 @@ import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 
 
+@RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PostDetailScreen(
@@ -55,7 +56,7 @@ fun PostDetailScreen(
 
     Scaffold(
         modifier = Modifier
-            .imePadding()                // ✅ Moves entire layout up when keyboard opens
+            .imePadding()
             .navigationBarsPadding(),
 
         topBar = {
@@ -126,7 +127,8 @@ fun PostDetailScreen(
                             val isLiked = currentUserId != null && selectedPost!!.likedBy.contains(currentUserId)
                             val isFollowed = followingIds.contains(selectedPost!!.authorId)
 
-                            CommunityPostCard(
+                            // Use Instagram-style post card
+                            EnhancedCommunityPostCard(
                                 post = selectedPost!!,
                                 currentUserId = currentUserId,
                                 isLiked = isLiked,
@@ -138,14 +140,14 @@ fun PostDetailScreen(
                                 onAuthorClick = { navController.navigate("tutorProfile/${selectedPost!!.authorId}") },
                                 onPostClick = { /* Already here */ },
                                 onEditClick = { navController.navigate("createPost?postId=${selectedPost!!.id}") },
-                                onDeleteClick = { /* TODO: Show delete dialog, then call deletePost */ }
+                                onDeleteClick = { /* TODO: Show delete dialog */ }
                             )
                         }
 
                         // Comment Header
                         item {
                             Column {
-                                Divider()
+                                HorizontalDivider()
                                 Spacer(Modifier.height(8.dp))
                                 Text(
                                     text = "Comments (${selectedPost?.commentsCount ?: 0})",
@@ -222,7 +224,6 @@ fun CommentInputBar(
     }
 }
 
-
 @Composable
 fun CommentItem(comment: Comment) {
     Row(
@@ -282,3 +283,26 @@ fun CommentItem(comment: Comment) {
     }
 }
 
+// ✅ ADD THIS FUNCTION - Format timestamp helper
+@RequiresApi(Build.VERSION_CODES.O)
+private fun formatTimestamp(isoTimestamp: String): String {
+    return try {
+        val instant = Instant.parse(isoTimestamp)
+        val localDateTime = LocalDateTime.ofInstant(instant, ZoneId.systemDefault())
+        val now = LocalDateTime.now()
+
+        val minutesAgo = ChronoUnit.MINUTES.between(localDateTime, now)
+        val hoursAgo = ChronoUnit.HOURS.between(localDateTime, now)
+        val daysAgo = ChronoUnit.DAYS.between(localDateTime, now)
+
+        when {
+            minutesAgo < 1 -> "Just now"
+            minutesAgo < 60 -> "${minutesAgo}m ago"
+            hoursAgo < 24 -> "${hoursAgo}h ago"
+            daysAgo < 7 -> "${daysAgo}d ago"
+            else -> localDateTime.format(DateTimeFormatter.ofPattern("MMM d"))
+        }
+    } catch (e: Exception) {
+        isoTimestamp.take(10)
+    }
+}
