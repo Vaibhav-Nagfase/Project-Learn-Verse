@@ -62,6 +62,9 @@ class ActivitiesRepository(private val api: ApiService) {
         filter.minPrice?.let { filterMap["minPrice"] = it.toString() }
         filter.maxPrice?.let { filterMap["maxPrice"] = it.toString() }
         filter.demoAvailable?.let { filterMap["demoAvailable"] = it.toString() }
+        filter.minAge?.let { filterMap["minAge"] = it.toString() }
+        filter.maxAge?.let { filterMap["maxAge"] = it.toString() }
+        filter.freeTrialAvailable?.let { filterMap["freeTrialAvailable"] = it.toString() }
         filter.sortBy?.let { filterMap["sortBy"] = it }
         filter.sortDirection?.let { filterMap["sortDirection"] = it }
         filter.searchQuery?.let { if (it.isNotBlank()) filterMap["searchQuery"] = it }

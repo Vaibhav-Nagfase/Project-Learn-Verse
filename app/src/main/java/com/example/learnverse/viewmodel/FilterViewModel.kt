@@ -25,6 +25,11 @@ class FilterViewModel(
     // For checkbox/switch filters
     var demoAvailable = mutableStateOf(false)
 
+    var freeTrialAvailable = mutableStateOf(false)
+    var selectedCity = mutableStateOf("") // For a single city text field
+    var minAge = mutableStateOf("") // Using String for TextField
+    var maxAge = mutableStateOf("") // Using String for TextField
+
     // For sorting options
     var sortBy = mutableStateOf<String?>(null) // e.g., "price", "rating"
 
@@ -40,6 +45,10 @@ class FilterViewModel(
         selectedSubjects.clear()
         priceRange.value = 0f..50000f
         demoAvailable.value = false
+        freeTrialAvailable.value = false
+        selectedCity.value = ""
+        minAge.value = ""
+        maxAge.value = ""
         sortBy.value = null
     }
 
@@ -56,7 +65,11 @@ class FilterViewModel(
                 minPrice = priceRange.value.start.toInt(),
                 maxPrice = priceRange.value.endInclusive.toInt(),
                 demoAvailable = demoAvailable.value,
-                sortBy = sortBy.value
+                sortBy = sortBy.value,
+                cities = if (selectedCity.value.isNotBlank()) listOf(selectedCity.value) else null,
+                minAge = minAge.value.toIntOrNull(),
+                maxAge = maxAge.value.toIntOrNull(),
+                freeTrialAvailable = freeTrialAvailable.value
             )
 
             try {

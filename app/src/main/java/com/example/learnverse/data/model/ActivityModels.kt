@@ -257,6 +257,11 @@ data class ActivityFilter(
     val minPrice: Int? = null,
     val maxPrice: Int? = null,
     val demoAvailable: Boolean? = null,
+
+    val minAge: Int? = null,
+    val maxAge: Int? = null,
+    val freeTrialAvailable: Boolean? = null,
+
     val sortBy: String? = null,
     val sortDirection: String? = null,
     val searchQuery: String? = null

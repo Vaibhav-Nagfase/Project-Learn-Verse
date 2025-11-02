@@ -427,4 +427,14 @@ interface ApiService {
     @GET("api/activities/home-feed")
     suspend fun getHomeFeed(): Response<HomeFeedResponse>
 
+    // --- TUTOR'S OWN PROFILE ENDPOINTS ---
+
+    @GET("api/tutor-verification/my-profile")
+    suspend fun getMyTutorProfile(): Response<TutorMyProfileResponse>
+
+    @PUT("api/tutor-verification/update-profile")
+    suspend fun updateTutorProfile(
+        @Body request: TutorProfileUpdateRequest
+    ): Response<TutorMyProfileResponse> // Assuming it returns the updated profile
+
 }

@@ -9,6 +9,8 @@ import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.File
 import com.example.learnverse.data.model.Activity
+import com.example.learnverse.data.model.TutorMyProfileResponse
+import com.example.learnverse.data.model.TutorProfileUpdateRequest
 
 
 class TutorRepository(private val api: ApiService) {
@@ -106,5 +108,24 @@ class TutorRepository(private val api: ApiService) {
             return response.body()!!
         }
         throw Exception("Failed to get verification status")
+    }
+
+    suspend fun getMyTutorProfile(): TutorMyProfileResponse? { // ✅ Add '?'
+        val response = api.getMyTutorProfile()
+        if (response.isSuccessful && response.body() != null) {
+            return response.body()!!
+        } else if (response.code() == 404) { // ✅ Add this check
+            return null
+        }
+        // Throw exception for other errors
+        throw Exception("Failed to get tutor profile: ${response.message()}")
+    }
+
+    suspend fun updateTutorProfile(request: TutorProfileUpdateRequest): TutorMyProfileResponse {
+        val response = api.updateTutorProfile(request)
+        if (response.isSuccessful && response.body() != null) {
+            return response.body()!!
+        }
+        throw Exception("Failed to update tutor profile: ${response.message()}")
     }
 }

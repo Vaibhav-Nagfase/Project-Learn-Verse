@@ -2,6 +2,7 @@ package com.example.learnverse.ui.screen.filter
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
@@ -11,6 +12,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.learnverse.viewmodel.FilterViewModel
@@ -24,6 +26,10 @@ fun FilterScreen(
     val isLoading by viewModel.isLoading
 
     Scaffold(
+        // ✅ --- THIS IS THE FIX ---
+        modifier = Modifier.imePadding(),
+        // --- END OF FIX ---
+
         topBar = {
             TopAppBar(
                 title = { Text("Filters") },
@@ -73,7 +79,7 @@ fun FilterScreen(
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
+                .padding(paddingValues) // This padding is from the Scaffold
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(24.dp),
             contentPadding = PaddingValues(vertical = 16.dp)
@@ -132,9 +138,48 @@ fun FilterScreen(
                 }
             }
 
+            // --- LOCATION Section ---
+            item {
+                FilterSection("Location") {
+                    OutlinedTextField(
+                        value = viewModel.selectedCity.value,
+                        onValueChange = { viewModel.selectedCity.value = it },
+                        label = { Text("Enter a city") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+                }
+            }
+
+            // --- AGE RANGE Section ---
+            item {
+                FilterSection("Age Range") {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        OutlinedTextField(
+                            value = viewModel.minAge.value,
+                            onValueChange = { viewModel.minAge.value = it },
+                            label = { Text("Min Age") },
+                            modifier = Modifier.weight(1f),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                        )
+                        OutlinedTextField(
+                            value = viewModel.maxAge.value,
+                            onValueChange = { viewModel.maxAge.value = it },
+                            label = { Text("Max Age") },
+                            modifier = Modifier.weight(1f),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                        )
+                    }
+                }
+            }
+
             // --- FEATURES Section ---
             item {
                 FilterSection("Features") {
+                    // Demo Available
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Checkbox(
                             checked = viewModel.demoAvailable.value,
@@ -142,7 +187,20 @@ fun FilterScreen(
                         )
                         Text("Demo Available")
                     }
+                    // Free Trial
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Checkbox(
+                            checked = viewModel.freeTrialAvailable.value,
+                            onCheckedChange = { viewModel.freeTrialAvailable.value = it }
+                        )
+                        Text("Free Trial Available")
+                    }
                 }
+            }
+
+            // Add spacer to push content up from bottom bar
+            item {
+                Spacer(Modifier.height(16.dp))
             }
         }
     }

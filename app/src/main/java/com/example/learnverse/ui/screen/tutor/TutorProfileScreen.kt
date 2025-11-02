@@ -31,7 +31,7 @@ import com.example.learnverse.data.model.Activity
 import com.example.learnverse.data.model.CommunityPost
 import com.example.learnverse.data.model.FollowStats
 import com.example.learnverse.viewmodel.*
-import com.example.learnverse.ui.screen.community.CommunityPostCard
+import com.example.learnverse.ui.screen.community.EnhancedCommunityPostCard
 import com.example.learnverse.data.remote.ApiClient
 import com.example.learnverse.data.repository.AuthRepository
 import com.example.learnverse.data.repository.CommunityRepository
@@ -359,7 +359,7 @@ fun TutorPostsTab(
             items(posts, key = { it.id }) { post ->
                 val isLiked =
                     currentUserId != null && post.likedBy.contains(currentUserId)
-                CommunityPostCard(
+                EnhancedCommunityPostCard(
                     post = post,
                     currentUserId = currentUserId,
                     isLiked = isLiked,

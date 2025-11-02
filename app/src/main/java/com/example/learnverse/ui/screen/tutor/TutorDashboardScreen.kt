@@ -4,7 +4,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.* // Import necessary icons
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -13,150 +13,24 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
-import androidx.navigation.NavHostController
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
-import androidx.navigation.compose.rememberNavController
 import com.example.learnverse.data.model.Activity
-// Import screens needed for nested navigation
-import com.example.learnverse.ui.screen.community.DiscoverScreen
-import com.example.learnverse.ui.screen.community.MyPostsScreen
 import com.example.learnverse.viewmodel.ActivitiesViewModel
-// Import ViewModels
 import com.example.learnverse.viewmodel.AuthViewModel
 import com.example.learnverse.viewmodel.CommunityViewModel
+import com.example.learnverse.viewmodel.MyTutorProfileViewModel
 import com.example.learnverse.viewmodel.TutorViewModel
-import com.example.learnverse.viewmodel.UiState // Assuming UiState is from TutorViewModel
+import com.example.learnverse.viewmodel.UiState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TutorDashboardScreen(
-    mainNavController: NavController, // Renamed: NavController for outer graph
+    mainNavController: NavController,
     authViewModel: AuthViewModel,
     tutorViewModel: TutorViewModel,
     activitiesViewModel: ActivitiesViewModel,
-    communityViewModel: CommunityViewModel // Needed for Discover/MyPosts
-) {
-
-    val nestedNavController = rememberNavController() // Controller for internal tabs
-
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Tutor Area") },
-                actions = {
-                    IconButton(onClick = { authViewModel.logout() }) {
-                        Icon(Icons.Default.Logout, contentDescription = "Logout")
-                    }
-                }
-            )
-        },
-        bottomBar = {
-            // New bottom navigation bar using nestedNavController
-            TutorBottomNavigationBar(navController = nestedNavController)
-        },
-        floatingActionButton = {
-            val navBackStackEntry by nestedNavController.currentBackStackEntryAsState()
-            val currentRoute = navBackStackEntry?.destination?.route
-
-            // Show FAB based on the current nested route
-            when (currentRoute) {
-                TutorScreenRoutes.Dashboard.route -> { // FAB for Activities Dashboard
-                    FloatingActionButton(onClick = { mainNavController.navigate("create_activity") }) {
-                        Icon(Icons.Default.Add, contentDescription = "Create New Activity")
-                    }
-                }
-                TutorScreenRoutes.Discover.route, // FAB for Discover AND My Posts
-                TutorScreenRoutes.MyPosts.route -> {
-                    FloatingActionButton(onClick = { mainNavController.navigate("createPost") }) { // Use mainNavController
-                        Icon(Icons.Default.Add, contentDescription = "Create Post")
-                    }
-                }
-            }
-        }
-    ) { paddingValues ->
-        // Nested NavHost switches content based on bottom nav selection
-        NavHost(
-            navController = nestedNavController,
-            startDestination = TutorScreenRoutes.Dashboard.route,
-            modifier = Modifier.padding(paddingValues) // Apply scaffold padding
-        ) {
-            // Destination 1: The original Dashboard content
-            composable(TutorScreenRoutes.Dashboard.route) {
-                TutorDashboardContent(
-                    tutorViewModel = tutorViewModel,
-                    activitiesViewModel = activitiesViewModel,
-                    mainNavController = mainNavController // Pass outer NavController for actions
-                )
-            }
-            // Destination 2: The Discover feed screen
-            composable(TutorScreenRoutes.Discover.route) {
-                DiscoverScreen(
-                    navController = mainNavController, // Pass outer NavController
-                    communityViewModel = communityViewModel,
-                    authViewModel = authViewModel
-                )
-            }
-            // Destination 3: The Tutor's own posts screen
-            composable(TutorScreenRoutes.MyPosts.route) {
-                MyPostsScreen(
-                    navController = mainNavController, // Pass outer NavController
-                    communityViewModel = communityViewModel,
-                    authViewModel = authViewModel
-                )
-            }
-        }
-    }
-}
-
-// --- Define Routes for Nested Navigation ---
-sealed class TutorScreenRoutes(val route: String) {
-    data object Dashboard : TutorScreenRoutes("tutor_dashboard_content")
-    data object Discover : TutorScreenRoutes("tutor_discover")
-    data object MyPosts : TutorScreenRoutes("tutor_my_posts") // New route
-}
-
-// --- Tutor Specific Bottom Navigation Bar ---
-@Composable
-fun TutorBottomNavigationBar(navController: NavHostController) {
-    val navBackStackEntry by navController.currentBackStackEntryAsState()
-    val currentRoute = navBackStackEntry?.destination?.route
-
-    // Define the items for the tutor's bottom nav
-    val items = listOf(
-        Triple(TutorScreenRoutes.Dashboard.route, "Dashboard", Icons.Default.Dashboard),
-        Triple(TutorScreenRoutes.Discover.route, "Discover", Icons.Default.Groups),
-        Triple(TutorScreenRoutes.MyPosts.route, "My Posts", Icons.Default.Article) // New item
-    )
-
-    NavigationBar {
-        items.forEach { (route, title, icon) ->
-            NavigationBarItem(
-                icon = { Icon(icon, contentDescription = title) },
-                label = { Text(title) },
-                selected = currentRoute == route,
-                onClick = {
-                    // Navigate within the nested NavHost
-                    if (currentRoute != route) {
-                        navController.navigate(route) {
-                            popUpTo(navController.graph.startDestinationId) { saveState = true }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
-                    }
-                }
-            )
-        }
-    }
-}
-
-// --- Extracted Dashboard Content (Original Logic) ---
-@Composable
-fun TutorDashboardContent(
-    tutorViewModel: TutorViewModel,
-    activitiesViewModel: ActivitiesViewModel,
-    mainNavController: NavController
+    mytutorProfileViewModel:MyTutorProfileViewModel,
+    communityViewModel: CommunityViewModel // This is now unused, but safe to leave
 ) {
     val myActivities by tutorViewModel.myActivities.collectAsStateWithLifecycle()
     val uiState by tutorViewModel.uiState.collectAsStateWithLifecycle()
@@ -167,52 +41,128 @@ fun TutorDashboardContent(
         tutorViewModel.fetchMyActivities()
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        when {
-            uiState is UiState.Loading && myActivities.isEmpty() -> {
-                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = {
+                    Text(
+                        "My Dashboard",
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+                },
+
+                navigationIcon = {
+                    IconButton(onClick = { mainNavController.navigate("my_tutor_profile") }) {
+                        // Here you can use an AsyncImage to load the tutor's profile pic
+                        Icon(Icons.Default.AccountCircle, contentDescription = "My Profile")
+                    }
+                },
+
+                actions = {
+                    // This is where you add action buttons at the end (right side)
+                    IconButton(onClick = { authViewModel.logout() }) {
+                        Icon(Icons.Default.Logout, contentDescription = "Logout")
+                    }
+                }
+
+            )
+        },
+        // Add the BottomNavBar, passing the main NavController
+        bottomBar = {
+            TutorBottomNavigationBar(navController = mainNavController)
+        },
+        floatingActionButton = {
+            FloatingActionButton(onClick = { mainNavController.navigate("create_activity") }) {
+                Icon(Icons.Default.Add, contentDescription = "Create New Activity")
             }
-            myActivities.isEmpty() -> {
-                Text(
-                    "You haven't created any activities yet.\nTap the '+' to add one!",
-                    modifier = Modifier.align(Alignment.Center).padding(horizontal = 16.dp)
-                )
-            }
-            else -> {
-                LazyColumn(
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    items(myActivities) { activity ->
-                        ActivityCard(
-                            activity = activity,
-                            onClick = {
-                                activitiesViewModel.addActivityToCache(activity)
-                                mainNavController.navigate("activityDetail/${activity.id}")
-                            },
-                            onEdit = {
-                                // Use mainNavController to navigate outside
-                                mainNavController.navigate("create_activity?activityId=${activity.id}")
-                            },
-                            onDelete = { activityToDelete = activity }
-                        )
+        }
+    ) { paddingValues ->
+        Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
+            when {
+                uiState is UiState.Loading && myActivities.isEmpty() -> {
+                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                }
+                myActivities.isEmpty() -> {
+                    Text(
+                        "You haven't created any activities yet.\nTap the '+' to add one!",
+                        modifier = Modifier.align(Alignment.Center).padding(horizontal = 16.dp)
+                    )
+                }
+                else -> {
+                    LazyColumn(
+                        contentPadding = PaddingValues(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        // Add a header
+
+                        items(myActivities) { activity ->
+                            ActivityCard(
+                                activity = activity,
+                                onClick = {
+                                    activitiesViewModel.addActivityToCache(activity)
+                                    mainNavController.navigate("activityDetail/${activity.id}")
+                                },
+                                onEdit = {
+                                    mainNavController.navigate("create_activity?activityId=${activity.id}")
+                                },
+                                onDelete = { activityToDelete = activity }
+                            )
+                        }
                     }
                 }
             }
+
+            if (activityToDelete != null) {
+                DeleteConfirmationDialog(
+                    activityName = activityToDelete!!.title,
+                    onConfirm = {
+                        tutorViewModel.deleteActivity(activityToDelete!!.id)
+                        activityToDelete = null
+                    },
+                    onDismiss = { activityToDelete = null }
+                )
+            }
         }
-        // Delete confirmation dialog logic remains the same
-        if (activityToDelete != null) {
-            DeleteConfirmationDialog(
-                activityName = activityToDelete!!.title,
-                onConfirm = {
-                    tutorViewModel.deleteActivity(activityToDelete!!.id)
-                    activityToDelete = null
-                },
-                onDismiss = { activityToDelete = null }
+    }
+}
+
+
+@Composable
+fun TutorBottomNavigationBar(navController: NavController) {
+    // Get the current back stack entry to determine the selected route
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route
+
+    // Define the items for the tutor's bottom nav
+    val items = listOf(
+        Triple("tutor_dashboard_main", "Dashboard", Icons.Default.Dashboard),
+        Triple("tutor_discover", "Discover", Icons.Default.Groups),
+        Triple("tutor_my_posts", "My Posts", Icons.Default.Article)
+    )
+
+    NavigationBar {
+        items.forEach { (route, title, icon) ->
+            NavigationBarItem(
+                icon = { Icon(icon, contentDescription = title) },
+                label = { Text(title) },
+                selected = currentRoute == route,
+                onClick = {
+                    if (currentRoute != route) {
+                        navController.navigate(route) {
+                            popUpTo(navController.graph.startDestinationId) {
+                                saveState = true
+                            }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    }
+                }
             )
         }
     }
 }
+
 
 /**
  * A Composable card that displays a tutor's activity and provides update/delete actions.
@@ -325,4 +275,3 @@ fun DeleteConfirmationDialog(
         }
     )
 }
-

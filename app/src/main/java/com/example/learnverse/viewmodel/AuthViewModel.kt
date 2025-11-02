@@ -277,6 +277,23 @@ class AuthViewModel(
                     return@launch
                 }
 
+                try {
+                    val userProfile = profileRepository.getProfile()
+                    _hasProfile.value = userProfile != null
+                } catch (e: Exception) {
+                    _hasProfile.value=false
+                }
+
+                if (userEmail != null) {
+                    try {
+                        // The token is no longer passed to the repository.
+                        _verificationStatus.value = tutorRepository.getTutorVerificationStatus(userEmail)
+                    } catch (e: Exception) {
+                        println("Could not get tutor status (user may not have applied yet): ${e.message}")
+                        _verificationStatus.value = null
+                    }
+                }
+
                 // Check interests for regular users
                 try {
                     val interestsResponse = repository.getUserInterests()

@@ -47,18 +47,20 @@ import com.example.learnverse.ui.screen.admin.AdminDashboardScreen
 import com.example.learnverse.ui.screen.auth.InterestSelectionDialog
 import com.example.learnverse.ui.screen.auth.LoginScreen
 import com.example.learnverse.ui.screen.auth.SignUpScreen
-import com.example.learnverse.ui.screen.community.CreatePostScreen
+import com.example.learnverse.ui.screen.community.EnhancedCreatePostScreen
 import com.example.learnverse.ui.screen.chatbot.ChatScreen
 import com.example.learnverse.ui.screen.detail.ActivityDetailScreen
 import com.example.learnverse.ui.screen.enrollment.MyCoursesScreen
 import com.example.learnverse.ui.screen.filter.FilterScreen
 import com.example.learnverse.ui.screen.home.HomeScreen
-import com.example.learnverse.ui.screen.community.DiscoverScreen
+import com.example.learnverse.ui.screen.community.EnhancedDiscoverScreen
+import com.example.learnverse.ui.screen.community.MyPostsScreen
 import com.example.learnverse.ui.screen.community.PostDetailScreen
 import com.example.learnverse.ui.screen.interest.InterestManagementScreen
 import com.example.learnverse.ui.screen.profile.ProfileScreen
 import com.example.learnverse.ui.screen.search.SearchScreen
 import com.example.learnverse.ui.screen.tutor.CreateActivityScreen
+import com.example.learnverse.ui.screen.tutor.MyTutorProfileScreen
 import com.example.learnverse.ui.screen.tutor.TutorDashboardScreen
 import com.example.learnverse.ui.screen.tutor.TutorProfileScreen
 import com.example.learnverse.ui.screen.tutor.TutorVerificationScreen
@@ -141,6 +143,10 @@ fun LearnVerseApp() {
         factory = CommunityViewModelFactory(communityRepository, authRepository)
     )
 
+    val myTutorProfileViewModel: MyTutorProfileViewModel = viewModel(
+        factory = MyTutorProfileViewModelFactory(tutorRepository)
+    )
+
     // --- State Observation ---
     val authState by authViewModel.authState.collectAsState()
     val userRole by authViewModel.currentUserRole.collectAsState()
@@ -167,7 +173,12 @@ fun LearnVerseApp() {
                     AdminNavGraph(authViewModel = authViewModel, adminViewModel = adminViewModel)
                 }
                 "TUTOR" -> {
-                    TutorNavGraph(authViewModel = authViewModel, tutorViewModel = tutorViewModel, communityViewModel = communityViewModel, activitiesViewModel = activitiesViewModel)
+                    TutorNavGraph(
+                        authViewModel = authViewModel,
+                        tutorViewModel = tutorViewModel,
+                        communityViewModel = communityViewModel,
+                        activitiesViewModel = activitiesViewModel,
+                        myTutorProfileViewModel = myTutorProfileViewModel)
                 }
                 else -> {
                     val startDestination = if (authViewModel.navigateToFeedAfterOnboarding || authViewModel.interestSelectionCancelled) "home" else "home"
@@ -229,7 +240,7 @@ fun MainNavGraph(
         }
 
         composable("discover") { // Or whatever name you choose for the feed
-            DiscoverScreen(navController, communityViewModel, authViewModel) // Pass necessary ViewModels
+            EnhancedDiscoverScreen(navController, communityViewModel, authViewModel) // Pass necessary ViewModels
         }
 
         composable(
@@ -327,7 +338,8 @@ fun TutorNavGraph(
     authViewModel: AuthViewModel,
     tutorViewModel: TutorViewModel,
     activitiesViewModel: ActivitiesViewModel,
-    communityViewModel: CommunityViewModel
+    communityViewModel: CommunityViewModel,
+    myTutorProfileViewModel: MyTutorProfileViewModel
 ) {
     val navController = rememberNavController()
     NavHost(navController = navController, startDestination = "tutor_dashboard_main") {
@@ -337,7 +349,33 @@ fun TutorNavGraph(
                 authViewModel = authViewModel,
                 tutorViewModel = tutorViewModel,
                 activitiesViewModel = activitiesViewModel,
+                mytutorProfileViewModel = myTutorProfileViewModel,
                 communityViewModel = communityViewModel
+            )
+        }
+
+        composable("my_tutor_profile") {
+            MyTutorProfileScreen(
+                navController = navController,
+                profileViewModel = myTutorProfileViewModel
+            )
+        }
+
+        // --- 2. Discover Tab ---
+        composable("tutor_discover") {
+            EnhancedDiscoverScreen(
+                navController = navController,
+                communityViewModel = communityViewModel,
+                authViewModel = authViewModel
+            )
+        }
+
+        // --- 3. My Posts Tab ---
+        composable("tutor_my_posts") {
+            MyPostsScreen(
+                navController = navController,
+                communityViewModel = communityViewModel,
+                authViewModel = authViewModel
             )
         }
 
@@ -383,7 +421,7 @@ fun TutorNavGraph(
             route = "createPost?postId={postId}",
             arguments = listOf(navArgument("postId") { nullable = true; type = NavType.StringType })
         ) { backStackEntry ->
-            CreatePostScreen(
+            EnhancedCreatePostScreen(
                 navController = navController,
                 communityViewModel = communityViewModel,
                 postIdToEdit = backStackEntry.arguments?.getString("postId")
