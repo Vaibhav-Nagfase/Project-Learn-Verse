@@ -30,7 +30,7 @@ fun MyPostsScreen(
     val myPosts by communityViewModel.myPosts.collectAsStateWithLifecycle()
     val myPostsUiState by communityViewModel.myPostsUiState.collectAsStateWithLifecycle()
     val isLoadingMoreMyPosts = communityViewModel.isLoadingMoreMyPosts
-
+    var selectedPost by remember { mutableStateOf<CommunityPost?>(null) }
     val listState = rememberLazyListState()
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -92,7 +92,6 @@ fun MyPostsScreen(
                 else -> {
                     LazyColumn(
                         state = listState,
-                        contentPadding = PaddingValues(16.dp),
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
 
@@ -105,7 +104,7 @@ fun MyPostsScreen(
                                 isLiked = isLiked,
                                 isFollowed = false, // Not applicable here
                                 onLikeClick = { communityViewModel.likePost(post.id) },
-                                onCommentClick = { navController.navigate("postDetail/${post.id}") },
+                                onCommentClick = { selectedPost = post },
                                 onFollowClick = { /* No action */ },
                                 onUnfollowClick = { /* No action */ },
                                 onAuthorClick = { /* No action */ },
@@ -124,6 +123,19 @@ fun MyPostsScreen(
                         }
                     }
                 }
+            }
+
+            selectedPost?.let { post ->
+                CommentsBottomSheet(
+                    post = post,
+                    currentUserId = currentUserId,
+                    onDismiss = { selectedPost = null },
+                    onAddComment = { commentText ->
+                        communityViewModel.addComment(post.id, commentText)
+                    },
+                    onLikeComment = { },
+                    onDeleteComment = { }
+                )
             }
 
             if (postToDelete != null) {

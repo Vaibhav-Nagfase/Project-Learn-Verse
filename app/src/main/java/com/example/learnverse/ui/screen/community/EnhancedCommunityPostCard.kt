@@ -11,6 +11,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
@@ -141,27 +142,51 @@ fun EnhancedCommunityPostCard(
                             }
                         }
 
+                        // ✅ Smart aspect ratio detection
+                        var videoAspectRatio by remember { mutableStateOf(16f / 9f) } // Default landscape
+                        var isLoading by remember { mutableStateOf(true) }
+
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .aspectRatio(16f / 9f)
+                                .then(
+                                    // Use detected aspect ratio, fallback to width-based sizing
+                                    if (videoAspectRatio > 0) {
+                                        Modifier.aspectRatio(videoAspectRatio)
+                                    } else {
+                                        Modifier.wrapContentHeight()
+                                    }
+                                )
+                                .background(MaterialTheme.colorScheme.surfaceVariant)
                                 .then(
                                     if (videoVisibilityTracker != null) {
                                         Modifier.trackVideoVisibility(
                                             videoId = post.id,
                                             visibilityTracker = videoVisibilityTracker,
-                                            onVisibilityChanged = { /* Optional: log visibility */ }
+                                            onVisibilityChanged = {}
                                         )
-                                    } else {
-                                        Modifier
-                                    }
+                                    } else Modifier
                                 )
                         ) {
                             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                                AutoPlayVideoPlayer(
+                                SmartVideoPlayer(
                                     videoUrl = post.mediaUrl,
                                     shouldPlay = shouldPlay,
+                                    onAspectRatioDetected = { ratio ->
+                                        videoAspectRatio = ratio
+                                        isLoading = false
+                                    },
                                     modifier = Modifier.fillMaxSize()
+                                )
+                            }
+
+                            // Loading indicator while detecting aspect ratio
+                            if (isLoading) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .align(Alignment.Center),
+                                    color = MaterialTheme.colorScheme.primary
                                 )
                             }
                         }

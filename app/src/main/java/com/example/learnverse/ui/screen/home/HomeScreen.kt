@@ -139,47 +139,6 @@ fun HomeScreen(
 
                 Divider() // Optional: for visual separation
 
-                // --- THIS IS THE NEW DYNAMIC LOGIC ---
-                when (verificationStatus?.status) {
-                    "PENDING" -> {
-                        NavigationDrawerItem(
-                            label = { Text(text = "Verification Pending") },
-                            selected = false,
-                            onClick = { /* TODO: Navigate to a status screen */ }
-                        )
-                    }
-                    "REJECTED" -> {
-                        NavigationDrawerItem(
-                            label = {
-                                Column{
-                                    Row(modifier = Modifier.fillMaxWidth(),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.SpaceBetween){
-                                        Text(text = "Verification Rejected Reapply")
-                                        Icon(Icons.Default.ArrowForward, contentDescription = "direction")
-                                    }
-                                    Text(text = "Reason: ${verificationStatus?.rejectionReason}")
-                                }
-                            },
-                            selected = false,
-                            onClick = {
-                                scope.launch { drawerState.close() }
-                                navController.navigate("tutorVerification")
-                            }
-                        )
-                    }
-                    else -> {
-                        // This shows if status is null (never applied) or anything else
-                        NavigationDrawerItem(
-                            label = { Text(text = "Become a Tutor") },
-                            selected = false,
-                            onClick = {
-                                scope.launch { drawerState.close() }
-                                navController.navigate("tutorVerification")
-                            }
-                        )
-                    }
-                }
 
                 // TODO: Add other drawer items like "Profile", "Settings", etc.
             }
