@@ -7,9 +7,7 @@ import com.example.learnverse.data.model.Activity
 import com.example.learnverse.data.model.ActivityFilter
 import com.example.learnverse.data.model.NaturalSearchRequest
 import com.example.learnverse.data.remote.ApiService
-import com.example.learnverse.data.model.ActivitiesByIdsRequest
 import com.example.learnverse.data.model.AddReviewResponse
-import com.example.learnverse.data.model.EnrollmentRequest
 import com.example.learnverse.data.model.ReviewsResponse
 import com.example.learnverse.data.model.CreateReviewRequest
 import com.example.learnverse.data.model.DeleteReviewResponse
@@ -110,13 +108,12 @@ class ActivitiesRepository(private val api: ApiService) {
 
     // The 'token' parameter has been removed.
     suspend fun getMyEnrolledActivities(): List<Activity> {
-        // The "Bearer $token" argument has been removed.
         val enrollmentsResponse = api.getMyEnrollments()
         if (!enrollmentsResponse.isSuccessful || enrollmentsResponse.body() == null) {
             throw Exception("Failed to fetch enrollments")
         }
 
-        val enrollments = enrollmentsResponse.body()!!.enrollments
+        val enrollments = enrollmentsResponse.body()!!
         if (enrollments.isEmpty()) {
             return emptyList()
         }
@@ -131,6 +128,7 @@ class ActivitiesRepository(private val api: ApiService) {
 
         throw Exception("Failed to fetch activity details for enrollments")
     }
+
 
 
     /**

@@ -210,9 +210,13 @@ fun ActivityDetailScreen(
         // Tab Content - FABs are handled INSIDE each tab
         HorizontalPager(count = 4, state = pagerState, modifier = Modifier.fillMaxSize()) { page ->
             when (page) {
-                0 -> ActivityInfoTab(activity!!, isEnrolled, isTutor) {
-                    activitiesViewModel.enrollInActivity(activityId)
-                }
+                0 -> ActivityInfoTab(
+                    activity = activity!!,
+                    isEnrolled = isEnrolled,
+                    isTutor = isTutor,
+                    onEnroll = {
+                        navController.navigate("enrollment/${activity!!.id}")
+                    })
                 1 -> VideosTab(
                     activity = activity!!,
                     isTutor = isTutor,

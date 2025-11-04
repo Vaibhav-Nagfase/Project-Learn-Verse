@@ -1,6 +1,7 @@
 package com.example.learnverse
 
 import android.annotation.SuppressLint
+import android.app.Activity
 import android.app.Application
 import android.os.Build
 import android.os.Bundle
@@ -56,6 +57,7 @@ import com.example.learnverse.ui.screen.home.HomeScreen
 import com.example.learnverse.ui.screen.community.EnhancedDiscoverScreen
 import com.example.learnverse.ui.screen.community.MyPostsScreen
 import com.example.learnverse.ui.screen.community.PostDetailScreen
+import com.example.learnverse.ui.screen.enrollment.EnrollmentFormScreen
 import com.example.learnverse.ui.screen.interest.InterestManagementScreen
 import com.example.learnverse.ui.screen.profile.ProfileScreen
 import com.example.learnverse.ui.screen.search.SearchScreen
@@ -68,9 +70,15 @@ import com.example.learnverse.ui.screen.tutor.VerificationStatusScreen
 import com.example.learnverse.ui.screen.video.VideoPlayerScreen
 import com.example.learnverse.ui.theme.LearnVerseTheme
 import com.example.learnverse.viewmodel.*
+import com.razorpay.PaymentData
+import com.razorpay.PaymentResultWithDataListener
 
 
-class MainActivity : ComponentActivity() {
+class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
+
+    private var paymentSuccessCallback: ((String, String, String) -> Unit)? = null
+    private var paymentFailureCallback: ((String, String) -> Unit)? = null
+
     @RequiresApi(Build.VERSION_CODES.O)
     @SuppressLint("ViewModelConstructorInComposable")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -86,6 +94,43 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    // Razorpay payment success callback
+    override fun onPaymentSuccess(razorpayPaymentId: String, paymentData: PaymentData?) {
+        try {
+            val orderId = paymentData?.orderId ?: ""
+            val signature = paymentData?.signature ?: ""
+
+            // Call the success callback
+            paymentSuccessCallback?.invoke(razorpayPaymentId, orderId, signature)
+
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    // Razorpay payment failure callback
+    override fun onPaymentError(errorCode: Int, errorDescription: String, paymentData: PaymentData?) {
+        try {
+            val orderId = paymentData?.orderId ?: ""
+            val reason = "$errorDescription (Code: $errorCode)"
+
+            // Call the failure callback
+            paymentFailureCallback?.invoke(orderId, reason)
+
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    // Method to set payment callbacks (call from ViewModel)
+    fun setPaymentCallbacks(
+        onSuccess: (String, String, String) -> Unit,
+        onFailure: (String, String) -> Unit
+    ) {
+        paymentSuccessCallback = onSuccess
+        paymentFailureCallback = onFailure
     }
 }
 
@@ -114,6 +159,7 @@ fun LearnVerseApp() {
     val profileRepository = remember { ProfileRepository(apiService) }
     val communityRepository = remember { CommunityRepository(apiService) }
     val chatRepository = remember { ChatRepository(apiService, okHttpClient) }
+    val enrollmentRepository = remember { EnrollmentRepository(apiService) }
 
     // --- VIEWMODELS ---
     val authViewModel: AuthViewModel = viewModel(
@@ -152,6 +198,10 @@ fun LearnVerseApp() {
         factory = MyTutorProfileViewModelFactory(tutorRepository)
     )
 
+    val enrollmentViewModel: EnrollmentViewModel = viewModel(
+        factory = EnrollmentViewModelFactory(enrollmentRepository)
+    )
+
     // --- State Observation ---
     val authState by authViewModel.authState.collectAsState()
     val userRole by authViewModel.currentUserRole.collectAsState()
@@ -183,7 +233,8 @@ fun LearnVerseApp() {
                         tutorViewModel = tutorViewModel,
                         communityViewModel = communityViewModel,
                         activitiesViewModel = activitiesViewModel,
-                        myTutorProfileViewModel = myTutorProfileViewModel)
+                        myTutorProfileViewModel = myTutorProfileViewModel,
+                        enrollmentViewModel = enrollmentViewModel)
                 }
                 else -> {
                     val startDestination = if (authViewModel.navigateToFeedAfterOnboarding || authViewModel.interestSelectionCancelled) "home" else "home"
@@ -195,7 +246,8 @@ fun LearnVerseApp() {
                         tutorVerificationViewModel = tutorVerificationViewModel,
                         profileViewModel = profileViewModel,
                         communityViewModel = communityViewModel,
-                        chatViewModel = chatViewModel
+                        chatViewModel = chatViewModel,
+                        enrollmentViewModel = enrollmentViewModel
                     )
                 }
             }
@@ -222,9 +274,12 @@ fun MainNavGraph(
     tutorVerificationViewModel: TutorVerificationViewModel,
     profileViewModel: ProfileViewModel,
     communityViewModel: CommunityViewModel,
-    chatViewModel: ChatViewModel
+    chatViewModel: ChatViewModel,
+    enrollmentViewModel: EnrollmentViewModel
 ) {
     val navController = rememberNavController()
+    val context = LocalContext.current
+
     NavHost(navController = navController, startDestination = startDestination) {
         composable("home") {
             HomeScreen(navController, authViewModel, activitiesViewModel)
@@ -331,6 +386,20 @@ fun MainNavGraph(
             }
         }
 
+        composable(
+            route = "enrollment/{activityId}",
+            arguments = listOf(navArgument("activityId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val activityId = backStackEntry.arguments?.getString("activityId") ?: ""
+            EnrollmentFormScreen(
+                activityId = activityId,
+                androidActivity = context as Activity,
+                navController = navController,
+                enrollmentViewModel = enrollmentViewModel,
+                activitiesViewModel = activitiesViewModel,
+            )
+        }
+
     }
 
     LaunchedEffect(Unit) {
@@ -344,7 +413,8 @@ fun TutorNavGraph(
     tutorViewModel: TutorViewModel,
     activitiesViewModel: ActivitiesViewModel,
     communityViewModel: CommunityViewModel,
-    myTutorProfileViewModel: MyTutorProfileViewModel
+    myTutorProfileViewModel: MyTutorProfileViewModel,
+    enrollmentViewModel: EnrollmentViewModel
 ) {
     val navController = rememberNavController()
     NavHost(navController = navController, startDestination = "tutor_dashboard_main") {

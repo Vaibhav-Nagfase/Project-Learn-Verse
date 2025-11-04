@@ -91,6 +91,10 @@ dependencies {
     implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.compose.runtime:runtime-livedata")
 
+    implementation("com.razorpay:checkout:1.6.41")
+
+    implementation("com.google.code.gson:gson:2.13.2")
+
     // The rest of your dependencies are managed by your version catalog (libs) and are correct.
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)

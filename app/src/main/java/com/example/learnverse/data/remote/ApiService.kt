@@ -1,30 +1,29 @@
 package com.example.learnverse.data.remote
 
 import com.example.learnverse.data.model.*
+import com.example.learnverse.data.model.OrderResponse
+import com.example.learnverse.data.model.PaymentVerificationRequest
+import com.example.learnverse.data.model.PaymentVerificationResponse
 import com.example.learnverse.data.model.profile.ProfileResponse
 import com.example.learnverse.data.model.profile.UserProfile
 import com.example.learnverse.data.model.profile.UserProfileRequest
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.GET
-import retrofit2.http.Header
 import retrofit2.http.POST
 import retrofit2.http.Query
 import retrofit2.http.QueryMap
 import retrofit2.http.HTTP
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
-import okhttp3.ResponseBody
 import retrofit2.http.DELETE
 import retrofit2.http.Multipart
 import retrofit2.http.PUT
 import retrofit2.http.Part
 import retrofit2.http.Path
-import retrofit2.http.Url
 import retrofit2.Call
 import retrofit2.http.Field
 import retrofit2.http.FormUrlEncoded
-import retrofit2.http.Streaming
 
 interface ApiService {
 
@@ -138,9 +137,6 @@ interface ApiService {
 //    suspend fun enrollInActivity(
 //        @Body request: EnrollmentRequest
 //    ): Response<Unit> // Assuming we don't need the response body for now
-
-    @GET("api/enrollments/my-enrollments")
-    suspend fun getMyEnrollments(): Response<MyEnrollmentsResponse>
 
     @POST("api/activities/by-ids")
     suspend fun getActivitiesByIds(
@@ -436,5 +432,47 @@ interface ApiService {
     suspend fun updateTutorProfile(
         @Body request: TutorProfileUpdateRequest
     ): Response<TutorMyProfileResponse> // Assuming it returns the updated profile
+
+    // ========== ENROLLMENT APIs ==========
+
+    @POST("api/enrollments/initiate")
+    suspend fun initiateEnrollment(
+        @Body request: EnrollmentRequest
+    ): Response<OrderResponse>
+
+    @POST("api/enrollments/complete")
+    suspend fun completeEnrollment(
+        @Body request: Map<String, String>
+    ): Response<Enrollment>
+
+    @POST("api/enrollments/free")
+    suspend fun enrollInFreeActivity(
+        @Body request: EnrollmentRequest
+    ): Response<Enrollment>
+
+    @GET("api/enrollments/my-enrollments")
+    suspend fun getMyEnrollments(): Response<List<Enrollment>>
+
+    @GET("api/enrollments/check/{activityId}")
+    suspend fun checkEnrollment(
+        @Path("activityId") activityId: String
+    ): Response<Map<String, Boolean>>
+
+    // ========== PAYMENT APIs ==========
+
+    @POST("api/payments/verify")
+    suspend fun verifyPayment(
+        @Body request: PaymentVerificationRequest
+    ): Response<Map<String, Any>>
+
+    @POST("api/payments/failure")
+    suspend fun handlePaymentFailure(
+        @Body request: Map<String, String>
+    ): Response<Map<String, String>>
+
+    @GET("api/payments/order/{orderId}")
+    suspend fun getOrder(
+        @Path("orderId") orderId: String
+    ): Response<Order>
 
 }
