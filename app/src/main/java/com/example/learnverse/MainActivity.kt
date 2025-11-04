@@ -64,6 +64,7 @@ import com.example.learnverse.ui.screen.search.SearchScreen
 import com.example.learnverse.ui.screen.tutor.CreateActivityScreen
 import com.example.learnverse.ui.screen.tutor.MyTutorProfileScreen
 import com.example.learnverse.ui.screen.tutor.TutorDashboardScreen
+import com.example.learnverse.ui.screen.tutor.TutorEarningsDashboardScreen
 import com.example.learnverse.ui.screen.tutor.TutorProfileScreen
 import com.example.learnverse.ui.screen.tutor.TutorVerificationScreen
 import com.example.learnverse.ui.screen.tutor.VerificationStatusScreen
@@ -160,6 +161,7 @@ fun LearnVerseApp() {
     val communityRepository = remember { CommunityRepository(apiService) }
     val chatRepository = remember { ChatRepository(apiService, okHttpClient) }
     val enrollmentRepository = remember { EnrollmentRepository(apiService) }
+    val tutorDashboardRepository = remember { TutorDashboardRepository(apiService) }
 
     // --- VIEWMODELS ---
     val authViewModel: AuthViewModel = viewModel(
@@ -202,6 +204,9 @@ fun LearnVerseApp() {
         factory = EnrollmentViewModelFactory(enrollmentRepository)
     )
 
+    val tutorDashboardViewModel: TutorDashboardViewModel = viewModel(
+        factory = TutorDashboardViewModelFactory(tutorDashboardRepository)
+    )
     // --- State Observation ---
     val authState by authViewModel.authState.collectAsState()
     val userRole by authViewModel.currentUserRole.collectAsState()
@@ -234,7 +239,8 @@ fun LearnVerseApp() {
                         communityViewModel = communityViewModel,
                         activitiesViewModel = activitiesViewModel,
                         myTutorProfileViewModel = myTutorProfileViewModel,
-                        enrollmentViewModel = enrollmentViewModel)
+                        enrollmentViewModel = enrollmentViewModel,
+                        tutorDashboardViewModel = tutorDashboardViewModel)
                 }
                 else -> {
                     val startDestination = if (authViewModel.navigateToFeedAfterOnboarding || authViewModel.interestSelectionCancelled) "home" else "home"
@@ -414,7 +420,8 @@ fun TutorNavGraph(
     activitiesViewModel: ActivitiesViewModel,
     communityViewModel: CommunityViewModel,
     myTutorProfileViewModel: MyTutorProfileViewModel,
-    enrollmentViewModel: EnrollmentViewModel
+    enrollmentViewModel: EnrollmentViewModel,
+    tutorDashboardViewModel: TutorDashboardViewModel
 ) {
     val navController = rememberNavController()
     NavHost(navController = navController, startDestination = "tutor_dashboard_main") {
@@ -425,7 +432,15 @@ fun TutorNavGraph(
                 tutorViewModel = tutorViewModel,
                 activitiesViewModel = activitiesViewModel,
                 mytutorProfileViewModel = myTutorProfileViewModel,
-                communityViewModel = communityViewModel
+                communityViewModel = communityViewModel,
+                tutorDashboardViewModel = tutorDashboardViewModel
+            )
+        }
+
+        composable("tutor_earnings_dashboard") {
+            TutorEarningsDashboardScreen(
+                navController = navController,
+                viewModel = tutorDashboardViewModel
             )
         }
 

@@ -475,4 +475,10 @@ interface ApiService {
         @Path("orderId") orderId: String
     ): Response<Order>
 
+    /**
+     * Get tutor dashboard statistics
+     */
+    @GET("api/tutor/dashboard/stats")
+    suspend fun getTutorDashboardStats(): Response<TutorDashboardStats>
+
 }

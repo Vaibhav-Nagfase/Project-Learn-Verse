@@ -1,14 +1,17 @@
 package com.example.learnverse.ui.screen.tutor
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -19,6 +22,7 @@ import com.example.learnverse.viewmodel.ActivitiesViewModel
 import com.example.learnverse.viewmodel.AuthViewModel
 import com.example.learnverse.viewmodel.CommunityViewModel
 import com.example.learnverse.viewmodel.MyTutorProfileViewModel
+import com.example.learnverse.viewmodel.TutorDashboardViewModel
 import com.example.learnverse.viewmodel.TutorViewModel
 import com.example.learnverse.viewmodel.UiState
 
@@ -29,8 +33,9 @@ fun TutorDashboardScreen(
     authViewModel: AuthViewModel,
     tutorViewModel: TutorViewModel,
     activitiesViewModel: ActivitiesViewModel,
-    mytutorProfileViewModel:MyTutorProfileViewModel,
-    communityViewModel: CommunityViewModel // This is now unused, but safe to leave
+    mytutorProfileViewModel: MyTutorProfileViewModel,
+    communityViewModel: CommunityViewModel,
+    tutorDashboardViewModel: TutorDashboardViewModel
 ) {
     val myActivities by tutorViewModel.myActivities.collectAsStateWithLifecycle(
         initialValue = emptyList()
@@ -53,24 +58,18 @@ fun TutorDashboardScreen(
                         fontWeight = FontWeight.Bold
                     )
                 },
-
                 navigationIcon = {
                     IconButton(onClick = { mainNavController.navigate("my_tutor_profile") }) {
-                        // Here you can use an AsyncImage to load the tutor's profile pic
                         Icon(Icons.Default.AccountCircle, contentDescription = "My Profile")
                     }
                 },
-
                 actions = {
-                    // This is where you add action buttons at the end (right side)
                     IconButton(onClick = { authViewModel.logout() }) {
                         Icon(Icons.Default.Logout, contentDescription = "Logout")
                     }
                 }
-
             )
         },
-        // Add the BottomNavBar, passing the main NavController
         bottomBar = {
             TutorBottomNavigationBar(navController = mainNavController)
         },
@@ -86,18 +85,73 @@ fun TutorDashboardScreen(
                     CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
                 }
                 myActivities.isEmpty() -> {
-                    Text(
-                        "You haven't created any activities yet.\nTap the '+' to add one!",
-                        modifier = Modifier.align(Alignment.Center).padding(horizontal = 16.dp)
-                    )
+                    Column(
+                        modifier = Modifier.align(Alignment.Center).padding(horizontal = 16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        Text(
+                            "You haven't created any activities yet.\nTap the '+' to add one!",
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                    }
                 }
                 else -> {
                     LazyColumn(
                         contentPadding = PaddingValues(16.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        // Add a header
+                        // ✅ ADD EARNINGS CARD AS FIRST ITEM
+                        item {
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        mainNavController.navigate("tutor_earnings_dashboard")
+                                    },
+                                shape = RoundedCornerShape(16.dp),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = Color(0xFF4CAF50).copy(alpha = 0.1f)
+                                )
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(20.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(
+                                            Icons.Default.AccountBalance,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(40.dp),
+                                            tint = Color(0xFF4CAF50)
+                                        )
+                                        Spacer(modifier = Modifier.width(16.dp))
+                                        Column {
+                                            Text(
+                                                "View Earnings Dashboard",
+                                                style = MaterialTheme.typography.titleMedium,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                            Text(
+                                                "Track your revenue & analytics",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                    }
+                                    Icon(
+                                        Icons.Default.ChevronRight,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        }
 
+                        // Activities List
                         items(myActivities) { activity ->
                             ActivityCard(
                                 activity = activity,
@@ -115,6 +169,7 @@ fun TutorDashboardScreen(
                 }
             }
 
+            // Delete Confirmation Dialog
             if (activityToDelete != null) {
                 DeleteConfirmationDialog(
                     activityName = activityToDelete!!.title,
@@ -129,14 +184,11 @@ fun TutorDashboardScreen(
     }
 }
 
-
 @Composable
 fun TutorBottomNavigationBar(navController: NavController) {
-    // Get the current back stack entry to determine the selected route
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
-    // Define the items for the tutor's bottom nav
     val items = listOf(
         Triple("tutor_dashboard_main", "Dashboard", Icons.Default.Dashboard),
         Triple("tutor_discover", "Discover", Icons.Default.Groups),
@@ -165,10 +217,6 @@ fun TutorBottomNavigationBar(navController: NavController) {
     }
 }
 
-
-/**
- * A Composable card that displays a tutor's activity and provides update/delete actions.
- */
 @Composable
 fun ActivityCard(
     activity: Activity,
@@ -252,10 +300,6 @@ fun ActivityCard(
     }
 }
 
-
-/**
- * A confirmation dialog for deleting an activity.
- */
 @Composable
 fun DeleteConfirmationDialog(
     activityName: String,
