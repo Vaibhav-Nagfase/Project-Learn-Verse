@@ -89,6 +89,17 @@ class AuthViewModel(
         }
     }
 
+    // 🔥 NEW: Centralized function to check profile status
+    private suspend fun checkAndSetProfileStatus() {
+        try {
+            val userProfile = profileRepository.getProfile()
+            _hasProfile.value = userProfile != null
+        } catch (e: Exception) {
+            println("Profile check error: ${e.message}")
+            _hasProfile.value = false
+        }
+    }
+
     fun saveInterests(interests: List<String>) {
         viewModelScope.launch {
             interestSelectionCancelled = false
@@ -194,6 +205,9 @@ class AuthViewModel(
 
                 _loginUiState.value = LoginUiState.Idle
 
+                // 🔥 FIX: Check profile status for all roles
+                checkAndSetProfileStatus()
+
                 // ✅ Handle role-based navigation
                 when (response.role) {
                     "ADMIN" -> {
@@ -277,12 +291,8 @@ class AuthViewModel(
                     return@launch
                 }
 
-                try {
-                    val userProfile = profileRepository.getProfile()
-                    _hasProfile.value = userProfile != null
-                } catch (e: Exception) {
-                    _hasProfile.value=false
-                }
+                // 🔥 FIX: Check profile status for all roles
+                checkAndSetProfileStatus()
 
                 if (userEmail != null) {
                     try {

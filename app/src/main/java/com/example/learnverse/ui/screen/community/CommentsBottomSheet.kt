@@ -57,7 +57,7 @@ fun CommentsBottomSheet(
 ) {
     var commentText by remember { mutableStateOf("") }
     val sheetState = rememberModalBottomSheetState(
-        skipPartiallyExpanded = false
+        skipPartiallyExpanded = true
     )
 
     ModalBottomSheet(
@@ -71,6 +71,7 @@ fun CommentsBottomSheet(
             modifier = Modifier
                 .fillMaxWidth()
                 .fillMaxHeight(0.9f)
+                .imePadding()
         ) {
             // Comments List
             LazyColumn(
