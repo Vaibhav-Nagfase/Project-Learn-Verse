@@ -139,60 +139,176 @@ fun SearchScreen(
         .fillMaxSize()
         .statusBarsPadding()) {
 
-        // --- Top Bar with Search and Logout Icon ---
-        Row(
+        // 🔥 NEW: Modern Search Card (Replaces old OutlinedTextField + Logout button)
+        Card(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            shape = RoundedCornerShape(24.dp),
+            elevation = CardDefaults.cardElevation(
+                defaultElevation = 4.dp,
+                pressedElevation = 8.dp
+            ),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface
+            )
         ) {
-            OutlinedTextField(
-                value = currentSearchQuery,
-                onValueChange = { newValue ->
-                    // You now set the value directly on the ViewModel
-                    currentSearchQuery = newValue
-                    activitiesViewModel.searchQuery = newValue
-                },
-                label = { Text("Describe the activity you're looking for...") },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-                // --- Make Trailing Icon Clickable ---
-                trailingIcon = {
-                    IconButton(onClick = {
-                        if (recordAudioPermissionState.status.isGranted) {
-                            launchSpeechRecognizer()
-                        } else {
-                            recordAudioPermissionState.launchPermissionRequest()
-                        }
-                    }) {
-                        Icon(
-                            Icons.Default.Mic,
-                            contentDescription = "Speak to search",
-                            tint = if (recordAudioPermissionState.status.isGranted) MaterialTheme.colorScheme.primary else Color.Gray
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+            ) {
+                // 🔥 NEW: Header section
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Find Your Perfect Activity",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Describe what you're looking for...",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
-                },
-                // --- End of Trailing Icon Change ---
-                modifier = Modifier.weight(1f), // Use weight to fill available space
-                minLines = 2,
-                keyboardActions = KeyboardActions(onSearch = {
-                    // Check for location permission before searching
-                    if (locationPermissionState.status.isGranted) {
-                        activitiesViewModel.performNaturalSearch(context)
-                    } else {
-                        locationPermissionState.launchPermissionRequest()
-                    }
-                }),
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search)
-            )
-            IconButton(onClick = { showLogoutDialog = true }) {
-                Icon(
-                    Icons.Default.Logout, // Using the correct Logout icon
-                    contentDescription = "Logout",
-                    tint = MaterialTheme.colorScheme.onSurface
-                )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // 🔥 NEW: Modern search field with better styling
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                ) {
+                    OutlinedTextField(
+                        value = currentSearchQuery,
+                        onValueChange = { newValue ->
+                            currentSearchQuery = newValue
+                            activitiesViewModel.searchQuery = newValue
+                        },
+                        placeholder = {
+                            Text(
+                                "e.g., 'Dance classes near me' or 'Online coding for kids'",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                            )
+                        },
+                        leadingIcon = {
+                            Icon(
+                                Icons.Default.Search,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        },
+                        trailingIcon = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                // 🔥 NEW: Clear button
+                                if (currentSearchQuery.isNotEmpty()) {
+                                    IconButton(
+                                        onClick = {
+                                            currentSearchQuery = ""
+                                            activitiesViewModel.searchQuery = ""
+                                        }
+                                    ) {
+                                        Icon(
+                                            Icons.Default.Close,
+                                            contentDescription = "Clear search",
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+
+                                // 🔥 Voice search button
+                                IconButton(
+                                    onClick = {
+                                        if (recordAudioPermissionState.status.isGranted) {
+                                            launchSpeechRecognizer()
+                                        } else {
+                                            recordAudioPermissionState.launchPermissionRequest()
+                                        }
+                                    }
+                                ) {
+                                    Icon(
+                                        Icons.Default.Mic,
+                                        contentDescription = "Voice search",
+                                        tint = if (recordAudioPermissionState.status.isGranted)
+                                            MaterialTheme.colorScheme.primary
+                                        else
+                                            MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        minLines = 2,
+                        maxLines = 3,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = MaterialTheme.colorScheme.primary,
+                            unfocusedBorderColor = Color.Transparent,
+                            focusedContainerColor = MaterialTheme.colorScheme.surface,
+                            unfocusedContainerColor = Color.Transparent
+                        ),
+                        shape = RoundedCornerShape(16.dp),
+                        textStyle = MaterialTheme.typography.bodyLarge,
+                        keyboardActions = KeyboardActions(
+                            onSearch = {
+                                if (locationPermissionState.status.isGranted) {
+                                    activitiesViewModel.performNaturalSearch(context)
+                                } else {
+                                    locationPermissionState.launchPermissionRequest()
+                                }
+                            }
+                        ),
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // 🔥 NEW: Search button
+                Button(
+                    onClick = {
+                        if (locationPermissionState.status.isGranted) {
+                            activitiesViewModel.performNaturalSearch(context)
+                        } else {
+                            locationPermissionState.launchPermissionRequest()
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary
+                    ),
+                    enabled = currentSearchQuery.isNotEmpty()
+                ) {
+                    Icon(
+                        Icons.Default.Search,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        "Search Activities",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
         }
+
+        // 🔥 REMOVED: Logout button is no longer here
+
 
         // --- Row for the Filter Button ---
         Row(

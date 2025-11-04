@@ -32,6 +32,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
@@ -45,6 +46,20 @@ import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
 import kotlinx.coroutines.launch
+
+// Animation imports
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.Spring
+
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.material.ripple.rememberRipple
+
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.draw.scale
 
 @OptIn(ExperimentalPermissionsApi::class)
 @Composable
@@ -91,56 +106,112 @@ fun HomeScreen(
     val hasProfile by authViewModel.hasProfile.collectAsStateWithLifecycle()
     val currentUserName by authViewModel.currentUserName.collectAsStateWithLifecycle()
 
+    var showLogoutDialog by remember { mutableStateOf(false) }
+
+    if (showLogoutDialog) {
+        LogoutConfirmationDialog(
+            onConfirm = {
+                showLogoutDialog = false
+                activitiesViewModel.clearData()
+                authViewModel.logout()
+            },
+            onDismiss = {
+                showLogoutDialog = false
+            }
+        )
+    }
+
     ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
             // 3. Define the content of the drawer
             ModalDrawerSheet {
-                Text("LearnVerse Menu", modifier = Modifier.padding(16.dp), style = MaterialTheme.typography.titleLarge)
+                Column(modifier = Modifier.fillMaxSize()) {
+                    Text(
+                        "LearnVerse Menu",
+                        modifier = Modifier.padding(16.dp),
+                        style = MaterialTheme.typography.titleLarge
+                    )
 
-                Divider()
+                    Divider()
 
-                // --- NEW "MY PROFILE" ITEM ---
-                NavigationDrawerItem(
-                    label = { Text(text = "My Profile") },
-                    selected = false,
-                    onClick = {
-                        scope.launch { drawerState.close() }
-                        // Navigate to update profile if it exists, otherwise go to setup
-                        if (hasProfile == true) {
-                            navController.navigate("my_profile")
-                        } else {
-                            navController.navigate("profile_setup")
+                    // --- NEW "MY PROFILE" ITEM ---
+                    NavigationDrawerItem(
+                        label = { Text(text = "My Profile") },
+                        selected = false,
+                        onClick = {
+                            scope.launch { drawerState.close() }
+                            // Navigate to update profile if it exists, otherwise go to setup
+                            if (hasProfile == true) {
+                                navController.navigate("my_profile")
+                            } else {
+                                navController.navigate("profile_setup")
+                            }
+                        }
+                    )
+
+                    Divider()
+                    NavigationDrawerItem(
+                        label = { Text(text = "My Interests") },
+                        selected = false,
+                        onClick = {
+                            scope.launch { drawerState.close() }
+                            navController.navigate("interestManagement")
+                        }
+                    )
+
+                    Divider() // Optional: for visual separation
+
+                    // --- ADD THIS NEW ITEM ---
+                    NavigationDrawerItem(
+                        label = { Text(text = "My Courses") },
+                        selected = false,
+                        onClick = {
+                            scope.launch { drawerState.close() }
+                            navController.navigate("my_courses")
+                        }
+                    )
+
+                    // Add spacer to push logout to bottom
+                    Spacer(modifier = Modifier.weight(1f))
+
+                    // Logout button (similar to profile screen)
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        onClick = {
+                            showLogoutDialog = true
+                            scope.launch { drawerState.close() }
+                        },
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.errorContainer
+                        )
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                Icons.Default.Logout,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                            Spacer(Modifier.width(12.dp))
+                            Text(
+                                "Logout",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.error,
+                                fontWeight = FontWeight.Bold
+                            )
                         }
                     }
-                )
 
-                Divider()
-                NavigationDrawerItem(
-                    label = { Text(text = "My Interests") },
-                    selected = false,
-                    onClick = {
-                        scope.launch { drawerState.close() }
-                        navController.navigate("interestManagement")
-                    }
-                )
-
-                Divider() // Optional: for visual separation
-
-                // --- ADD THIS NEW ITEM ---
-                NavigationDrawerItem(
-                    label = { Text(text = "My Courses") },
-                    selected = false,
-                    onClick = {
-                        scope.launch { drawerState.close() }
-                        navController.navigate("my_courses")
-                    }
-                )
-
-                Divider() // Optional: for visual separation
-
-
-                // TODO: Add other drawer items like "Profile", "Settings", etc.
+                    // TODO: Add other drawer items like "Profile", "Settings", etc.
+                }
             }
         }
     ) {
@@ -149,14 +220,23 @@ fun HomeScreen(
                 BottomNavigationBar(navController = navController)
             },
             floatingActionButton = {
-                FloatingActionButton(onClick = {
+                FloatingActionButton(
+                    onClick = {
                     when (hasProfile) {
                         true -> navController.navigate("chat")      // Profile exists, go to chat
                         false -> navController.navigate("profile_setup") // No profile, go to setup
                         null -> { /* Do nothing while profile status is loading */ }
                     }
-                }) {
-                    Icon(Icons.Default.Chat, contentDescription = "Learning Assistant")
+                    },
+                    modifier = Modifier.padding(8.dp),
+                    containerColor = Color.White
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.chatbot),
+                        contentDescription = "Chatbot",
+                        modifier = Modifier.size(40.dp),  // Match your icon's ideal size
+                        tint = Color.Unspecified  // Don't apply tint to actual image
+                    )
                 }
             }
         ) { paddingValues ->
@@ -310,16 +390,53 @@ fun HomeHeader(onProfileClick: () -> Unit, currentUserName: String?) {
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column {
-            Text( if(currentUserName == null){"Hello, Kid"}else{"Hello, ${currentUserName}"}, style = MaterialTheme.typography.headlineMedium) // TODO: Get user name
+            Text(
+                if (currentUserName == null) "Hello, Kid" else "Hello, $currentUserName",
+                style = MaterialTheme.typography.headlineMedium
+            )
         }
-        Image(
-            painter = painterResource(id = R.drawable.boy),
-            contentDescription = "Profile",
+
+        // 🔥 FIXED: Use remember for interaction source and simpler approach
+        val interactionSource = remember { MutableInteractionSource() }
+        val isPressed by interactionSource.collectIsPressedAsState()
+
+        val scale by animateFloatAsState(
+            targetValue = if (isPressed) 0.9f else 1f,
+            animationSpec = spring(
+                dampingRatio = Spring.DampingRatioMediumBouncy,
+                stiffness = Spring.StiffnessLow
+            )
+        )
+
+        Box(
             modifier = Modifier
                 .size(48.dp)
+                .scale(scale)
                 .clip(CircleShape)
-                .clickable { onProfileClick() }
-        )
+                .background(
+                    brush = Brush.linearGradient(
+                        colors = listOf(
+                            Color(0xFF6366F1), // Indigo
+                            Color(0xFF8B5CF6), // Purple
+                            Color(0xFFEC4899)  // Pink
+                        )
+                    )
+                )
+                .clickable(
+                    interactionSource = interactionSource,
+                    indication = ripple()
+                ) {
+                    onProfileClick()
+                },
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = currentUserName?.firstOrNull()?.uppercase() ?: "K",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = Color.White
+            )
+        }
     }
 }
 
@@ -420,7 +537,12 @@ fun NearbyActivityCard(activity: Activity, onClick: () -> Unit) {
                 Text("Image", color = MaterialTheme.colorScheme.onSecondaryContainer) // Placeholder for Image
             }
             Column(Modifier.padding(12.dp)) {
-                Text(text = activity.title, style = MaterialTheme.typography.titleMedium, maxLines = 2)
+                Text(
+                    text = activity.title,
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(text = activity.tutorName, style = MaterialTheme.typography.bodySmall, color = Color.Gray, maxLines = 1)
             }
@@ -598,7 +720,8 @@ fun FeaturedActivityCard(
                     text = activity.title ?: "",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    maxLines = 2
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -689,4 +812,31 @@ fun HorizontalActivitySection(
             }
         }
     }
+}
+
+@Composable
+private fun LogoutConfirmationDialog(
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Logout") },
+        text = { Text("Are you sure you want to logout?") },
+        confirmButton = {
+            Button(
+                onClick = onConfirm,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.error
+                )
+            ) {
+                Text("Logout")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
 }
