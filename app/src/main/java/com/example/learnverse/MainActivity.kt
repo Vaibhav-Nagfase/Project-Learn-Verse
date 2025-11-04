@@ -131,7 +131,12 @@ fun LearnVerseApp() {
     val adminViewModel: AdminViewModel = viewModel(
         factory = AdminViewModelFactory(application, adminRepository)
     )
-    val tutorViewModel: TutorViewModel = viewModel(factory = TutorViewModelFactory(tutorRepository))
+    val tutorViewModel: TutorViewModel = viewModel(
+        factory = TutorViewModelFactory(
+            repository = tutorRepository,
+            apiService = apiService,
+            context = context
+        ))
     val profileViewModel: ProfileViewModel = viewModel(
         factory = ProfileViewModelFactory(profileRepository)
     )

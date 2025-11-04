@@ -32,7 +32,9 @@ fun TutorDashboardScreen(
     mytutorProfileViewModel:MyTutorProfileViewModel,
     communityViewModel: CommunityViewModel // This is now unused, but safe to leave
 ) {
-    val myActivities by tutorViewModel.myActivities.collectAsStateWithLifecycle()
+    val myActivities by tutorViewModel.myActivities.collectAsStateWithLifecycle(
+        initialValue = emptyList()
+    )
     val uiState by tutorViewModel.uiState.collectAsStateWithLifecycle()
     var activityToDelete by remember { mutableStateOf<Activity?>(null) }
 
