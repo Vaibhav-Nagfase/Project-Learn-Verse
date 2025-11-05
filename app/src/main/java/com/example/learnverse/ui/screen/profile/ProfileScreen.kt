@@ -397,37 +397,6 @@ fun ProfileViewMode(
             }
         }
 
-        // Logout
-        item {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                onClick = onLogout,
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.errorContainer
-                )
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        Icons.Default.Logout,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.error
-                    )
-                    Spacer(Modifier.width(12.dp))
-                    Text(
-                        "Logout",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.error,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
-        }
     }
 }
 

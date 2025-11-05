@@ -41,6 +41,16 @@ import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
 
 
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.foundation.BorderStroke
+
+
+
+
+
+
 @OptIn(ExperimentalPermissionsApi::class)
 @Composable
 fun SearchScreen(
@@ -368,81 +378,252 @@ fun SearchScreen(
 }
 
 
+// 🔥 COMPLETELY REDESIGNED: Modern Activity Card with Rating
 @Composable
 fun ActivityResultCard(activity: Activity, onClick: () -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() },
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        shape = RoundedCornerShape(16.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        // 🔥 NEW: Add border for better visibility in dark mode
+        border = BorderStroke(
+            width = 1.dp,
+            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
+        )
     ) {
-        Row(modifier = Modifier.padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            // Placeholder for Image
-            Box(
-                modifier = Modifier
-                    .size(80.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(color = colorResource(R.color.violet)),
-                contentAlignment = Alignment.Center
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+        ) {
+            // 🔥 NEW: Title with category badge
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Top
             ) {
-                Text("Image", color = Color.White, fontWeight = FontWeight.Bold)
-            }
-            Spacer(modifier = Modifier.width(16.dp))
-            Column(modifier = Modifier.weight(1f)) {
+                // Title
                 Text(
                     text = activity.title,
-                    style = MaterialTheme.typography.titleMedium,
-                    maxLines = 2
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
                 )
+
+                // 🔥 NEW: Category badge
+                if (!activity.tags.isNullOrEmpty()) {
+                    Row(
+                        modifier = Modifier.padding(start = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        activity.tags.take(2).forEach { tag -> // Show max 2 tags
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = MaterialTheme.colorScheme.primaryContainer
+                            ) {
+                                Text(
+                                    text = tag,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Medium,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // 🔥 NEW: Tutor info with avatar
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                // Tutor avatar placeholder
+                Box(
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primaryContainer),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = activity.tutorName.firstOrNull()?.uppercase() ?: "T",
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                }
+
                 Text(
                     text = activity.tutorName,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = Color.Gray
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                Spacer(modifier = Modifier.height(8.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // 🔥 NEW: Info row with rating, duration, and users
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // 🔥 Rating
+                activity.reviews?.averageRating?.let { rating ->
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Star,
+                            contentDescription = "Rating",
+                            modifier = Modifier.size(18.dp),
+                            tint = Color(0xFFFFA000) // Amber color
+                        )
+                        Text(
+                            text = String.format("%.1f", rating),
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "(${activity.reviews?.totalReviews ?: 0})",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+
+                // Duration
+                activity.duration?.totalDuration?.let { duration ->
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
                         Icon(
                             Icons.Default.Schedule,
                             contentDescription = "Duration",
-                            modifier = Modifier.size(16.dp),
-                            tint = Color.Gray
+                            modifier = Modifier.size(18.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        val durationText = (activity.duration?.totalDuration?.let {
-                            "${it / 60} Hr."
-                        }) ?: "N/A"
+                        val durationText = if (duration < 60) "$duration Hr" else "${duration / 60} Hrs"
                         Text(
                             text = durationText,
-                            style = MaterialTheme.typography.bodySmall
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                }
+
+                // 🔥 Enrolled users
+                activity.enrollmentInfo?.enrolledCount?.let { count ->
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
                         Icon(
-                            Icons.Default.Person,
-                            contentDescription = "Users",
-                            modifier = Modifier.size(16.dp),
-                            tint = Color.Gray
+                            Icons.Default.People,
+                            contentDescription = "Enrolled",
+                            modifier = Modifier.size(18.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        // FIXED: Added parentheses for proper precedence
-                        val userCountText = (activity.enrollmentInfo?.enrolledCount?.let {
-                            "$it User"
-                        }) ?: "N/A"
                         Text(
-                            text = userCountText,
-                            style = MaterialTheme.typography.bodySmall
+                            text = "$count",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
             }
-            IconButton(onClick = { /* TODO: Handle like */ }) {
-                Icon(Icons.Outlined.FavoriteBorder, contentDescription = "Like")
+
+            // 🔥 NEW: Price and mode row
+            Spacer(modifier = Modifier.height(12.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Price
+                activity.pricing?.let { pricing ->
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (pricing.discountPrice != null) {
+                            // Show discounted price
+                            Text(
+                                text = "₹${pricing.discountPrice}",
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "₹${pricing.price}",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textDecoration = TextDecoration.LineThrough
+                            )
+                        } else {
+                            Text(
+                                text = "₹${pricing.price}",
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                }
+
+                // 🔥 Mode badge (Online/Offline)
+                activity.mode?.let { mode ->
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = if (mode.equals("Online", ignoreCase = true))
+                            MaterialTheme.colorScheme.tertiaryContainer
+                        else
+                            MaterialTheme.colorScheme.secondaryContainer
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Icon(
+                                if (mode.equals("Online", ignoreCase = true))
+                                    Icons.Default.Laptop
+                                else
+                                    Icons.Default.LocationOn,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                                tint = if (mode.equals("Online", ignoreCase = true))
+                                    MaterialTheme.colorScheme.onTertiaryContainer
+                                else
+                                    MaterialTheme.colorScheme.onSecondaryContainer
+                            )
+                            Text(
+                                text = mode,
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Medium,
+                                color = if (mode.equals("Online", ignoreCase = true))
+                                    MaterialTheme.colorScheme.onTertiaryContainer
+                                else
+                                    MaterialTheme.colorScheme.onSecondaryContainer
+                            )
+                        }
+                    }
+                }
             }
         }
     }
 }
+
 
 
 @Composable
