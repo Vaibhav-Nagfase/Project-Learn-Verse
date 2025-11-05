@@ -9,13 +9,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-import com.example.learnverse.data.model.Activity
 import com.example.learnverse.ui.screen.search.ActivityResultCard
 import com.example.learnverse.viewmodel.ActivitiesViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MyCoursesScreen(
+fun MyCoursesScreenTemp(
     navController: NavController,
     activitiesViewModel: ActivitiesViewModel
 ) {

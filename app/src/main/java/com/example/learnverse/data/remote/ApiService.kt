@@ -24,6 +24,7 @@ import retrofit2.http.Path
 import retrofit2.Call
 import retrofit2.http.Field
 import retrofit2.http.FormUrlEncoded
+import retrofit2.http.PATCH
 
 interface ApiService {
 
@@ -481,4 +482,104 @@ interface ApiService {
     @GET("api/tutor/dashboard/stats")
     suspend fun getTutorDashboardStats(): Response<TutorDashboardStats>
 
+    // User Courses
+
+    @GET("api/user/progress/my-courses")
+    suspend fun getMyCourses(): Response<List<UserProgressResponse>>
+
+    @GET("api/user/progress/{activityId}")
+    suspend fun getCourseProgress(
+        @Path("activityId") activityId: String
+    ): Response<UserProgressResponse>
+
+    @POST("api/user/progress/{activityId}/video")
+    suspend fun updateVideoProgress(
+        @Path("activityId") activityId: String,
+        @Body request: UpdateVideoProgressRequest
+    ): Response<UserProgress>
+
+    @POST("api/user/progress/{activityId}/resource/{resourceId}/complete")
+    suspend fun markResourceCompleted(
+        @Path("activityId") activityId: String,
+        @Path("resourceId") resourceId: String
+    ): Response<UserProgress>
+
+    @GET("api/user/progress/course/{activityId}")
+    suspend fun getStudentCourseView(
+        @Path("activityId") activityId: String
+    ): Response<StudentCourseViewResponse>
+
+    // ======== TUTOR COURSE MANAGEMENT ========
+
+    @GET("api/tutor/courses/{activityId}/management")
+    suspend fun getTutorCourseDetail(
+        @Path("activityId") activityId: String
+    ): Response<TutorCourseDetail>
+
+    @GET("api/tutor/courses/{activityId}/students")
+    suspend fun getEnrolledStudents(
+        @Path("activityId") activityId: String
+    ): Response<List<EnrolledStudent>>
+
+    @GET("api/tutor/courses/{activityId}/stats")
+    suspend fun getCourseStats(
+        @Path("activityId") activityId: String
+    ): Response<CourseStats>
+
+    @PATCH("api/tutor/courses/{activityId}/status")
+    suspend fun updateCourseStatus(
+        @Path("activityId") activityId: String,
+        @Body status: Map<String, Boolean>
+    ): Response<Unit>
+
+
+    // ======== VIDEO MANAGEMENT (matching your VideoManagementController) ========
+
+    @POST("api/tutor/activities/{activityId}/videos")
+    suspend fun addVideoToActivity(
+        @Path("activityId") activityId: String,
+        @Body request: AddVideoRequest
+    ): Response<Map<String, Any>>
+
+    @PUT("api/tutor/activities/{activityId}/videos/{videoId}")
+    suspend fun updateActivityVideo(
+        @Path("activityId") activityId: String,
+        @Path("videoId") videoId: String,
+        @Body request: UpdateVideoRequest
+    ): Response<Map<String, Any>>
+
+    @DELETE("api/tutor/activities/{activityId}/videos/{videoId}")
+    suspend fun deleteActivityVideo(
+        @Path("activityId") activityId: String,
+        @Path("videoId") videoId: String
+    ): Response<Map<String, Any>>
+
+// ======== RESOURCE MANAGEMENT ========
+
+    @POST("api/tutor/activities/{activityId}/videos/{videoId}/resources")
+    suspend fun addVideoResource(
+        @Path("activityId") activityId: String,
+        @Path("videoId") videoId: String,
+        @Body request: AddResourceRequest
+    ): Response<Map<String, Any>>
+
+    @DELETE("api/tutor/activities/{activityId}/videos/{videoId}/resources")
+    suspend fun deleteVideoResource(
+        @Path("activityId") activityId: String,
+        @Path("videoId") videoId: String,
+        @Query("url") resourceUrl: String
+    ): Response<Map<String, Any>>
+
+// ======== MEETING MANAGEMENT ========
+
+    @PUT("api/tutor/activities/{activityId}/meeting")
+    suspend fun updateActivityMeeting(
+        @Path("activityId") activityId: String,
+        @Body request: UpdateMeetingRequest
+    ): Response<Map<String, Any>>
+
+    @GET("api/tutor/activities/{activityId}/meeting")
+    suspend fun getActivityMeeting(
+        @Path("activityId") activityId: String
+    ): Response<Activity.VideoContent>
 }

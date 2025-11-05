@@ -34,7 +34,6 @@ import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
 import com.example.learnverse.R
 import com.example.learnverse.data.model.CommunityPost
-import com.example.learnverse.utils.VideoPlayer
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.time.Instant

@@ -51,7 +51,6 @@ import com.example.learnverse.ui.screen.auth.SignUpScreen
 import com.example.learnverse.ui.screen.community.EnhancedCreatePostScreen
 import com.example.learnverse.ui.screen.chatbot.ChatScreen
 import com.example.learnverse.ui.screen.detail.ActivityDetailScreen
-import com.example.learnverse.ui.screen.enrollment.MyCoursesScreen
 import com.example.learnverse.ui.screen.filter.FilterScreen
 import com.example.learnverse.ui.screen.home.HomeScreen
 import com.example.learnverse.ui.screen.community.EnhancedDiscoverScreen
@@ -59,6 +58,8 @@ import com.example.learnverse.ui.screen.community.MyPostsScreen
 import com.example.learnverse.ui.screen.community.PostDetailScreen
 import com.example.learnverse.ui.screen.enrollment.EnrollmentFormScreen
 import com.example.learnverse.ui.screen.interest.InterestManagementScreen
+import com.example.learnverse.ui.screen.my_course.MyCoursesScreen
+import com.example.learnverse.ui.screen.my_course.StudentCourseDetailScreen
 import com.example.learnverse.ui.screen.profile.ProfileScreen
 import com.example.learnverse.ui.screen.search.SearchScreen
 import com.example.learnverse.ui.screen.tutor.CreateActivityScreen
@@ -68,8 +69,13 @@ import com.example.learnverse.ui.screen.tutor.TutorEarningsDashboardScreen
 import com.example.learnverse.ui.screen.tutor.TutorProfileScreen
 import com.example.learnverse.ui.screen.tutor.TutorVerificationScreen
 import com.example.learnverse.ui.screen.tutor.VerificationStatusScreen
+import com.example.learnverse.ui.screen.tutor.course.AddResourceScreen
+import com.example.learnverse.ui.screen.tutor.course.AddVideoScreen
+import com.example.learnverse.ui.screen.tutor.course.EditMeetingScreen
+import com.example.learnverse.ui.screen.tutor.course.TutorCourseManagementScreen
 import com.example.learnverse.ui.screen.video.VideoPlayerScreen
 import com.example.learnverse.ui.theme.LearnVerseTheme
+import com.example.learnverse.utils.VideoPlayerScreen
 import com.example.learnverse.viewmodel.*
 import com.razorpay.PaymentData
 import com.razorpay.PaymentResultWithDataListener
@@ -162,6 +168,8 @@ fun LearnVerseApp() {
     val chatRepository = remember { ChatRepository(apiService, okHttpClient) }
     val enrollmentRepository = remember { EnrollmentRepository(apiService) }
     val tutorDashboardRepository = remember { TutorDashboardRepository(apiService) }
+    val studentProgressRepository = remember { StudentProgressRepository(apiService) }
+    val studentCourseRepository = remember { StudentCourseRepository(apiService) }
 
     // --- VIEWMODELS ---
     val authViewModel: AuthViewModel = viewModel(
@@ -207,6 +215,19 @@ fun LearnVerseApp() {
     val tutorDashboardViewModel: TutorDashboardViewModel = viewModel(
         factory = TutorDashboardViewModelFactory(tutorDashboardRepository)
     )
+
+    val myCoursesViewModel: MyCoursesViewModel = viewModel(
+        factory = MyCoursesViewModelFactory(studentProgressRepository)
+    )
+
+    val studentCourseViewModel: StudentCourseViewModel = viewModel(
+        factory = StudentCourseViewModelFactory(studentCourseRepository)
+    )
+
+    val videoPlayerViewModel: VideoPlayerViewModel = viewModel(
+        factory = VideoPlayerViewModelFactory(studentCourseRepository)
+    )
+
     // --- State Observation ---
     val authState by authViewModel.authState.collectAsState()
     val userRole by authViewModel.currentUserRole.collectAsState()
@@ -234,6 +255,7 @@ fun LearnVerseApp() {
                 }
                 "TUTOR" -> {
                     TutorNavGraph(
+                        apiService = apiService,
                         authViewModel = authViewModel,
                         tutorViewModel = tutorViewModel,
                         communityViewModel = communityViewModel,
@@ -253,7 +275,10 @@ fun LearnVerseApp() {
                         profileViewModel = profileViewModel,
                         communityViewModel = communityViewModel,
                         chatViewModel = chatViewModel,
-                        enrollmentViewModel = enrollmentViewModel
+                        enrollmentViewModel = enrollmentViewModel,
+                        myCoursesViewModel = myCoursesViewModel,
+                        studentCourseViewModel = studentCourseViewModel,
+                        videoPlayerViewModel = videoPlayerViewModel
                     )
                 }
             }
@@ -281,7 +306,10 @@ fun MainNavGraph(
     profileViewModel: ProfileViewModel,
     communityViewModel: CommunityViewModel,
     chatViewModel: ChatViewModel,
-    enrollmentViewModel: EnrollmentViewModel
+    enrollmentViewModel: EnrollmentViewModel,
+    myCoursesViewModel: MyCoursesViewModel,
+    studentCourseViewModel: StudentCourseViewModel,
+    videoPlayerViewModel: VideoPlayerViewModel
 ) {
     val navController = rememberNavController()
     val context = LocalContext.current
@@ -291,8 +319,12 @@ fun MainNavGraph(
             HomeScreen(navController, authViewModel, activitiesViewModel)
         }
         composable("my_courses") {
-            MyCoursesScreen(navController = navController, activitiesViewModel = activitiesViewModel)
+            MyCoursesScreen(
+                navController = navController,
+                viewModel = myCoursesViewModel
+            )
         }
+
         composable(
             route = "feed?query={query}",
             arguments = listOf(navArgument("query") { nullable = true })
@@ -406,6 +438,40 @@ fun MainNavGraph(
             )
         }
 
+        composable(
+            route = "student_course/{activityId}",
+            arguments = listOf(navArgument("activityId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val activityId = backStackEntry.arguments?.getString("activityId")
+            if (activityId != null) {
+                StudentCourseDetailScreen(
+                    activityId = activityId,
+                    navController = navController,
+                    viewModel = studentCourseViewModel
+                )
+            }
+        }
+
+        // ✅ ADD VIDEO PLAYER ROUTE
+        composable(
+            route = "video_player/{activityId}/{videoId}",
+            arguments = listOf(
+                navArgument("activityId") { type = NavType.StringType },
+                navArgument("videoId") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val activityId = backStackEntry.arguments?.getString("activityId")
+            val videoId = backStackEntry.arguments?.getString("videoId")
+
+            if (activityId != null && videoId != null) {
+                VideoPlayerScreen(
+                    activityId = activityId,
+                    videoId = videoId,
+                    navController = navController,
+                    viewModel = videoPlayerViewModel
+                )
+            }
+        }
     }
 
     LaunchedEffect(Unit) {
@@ -415,6 +481,7 @@ fun MainNavGraph(
 
 @Composable
 fun TutorNavGraph(
+    apiService: ApiService,
     authViewModel: AuthViewModel,
     tutorViewModel: TutorViewModel,
     activitiesViewModel: ActivitiesViewModel,
@@ -552,6 +619,68 @@ fun TutorNavGraph(
             } else {
                 Text("Error: Tutor ID missing")
             }
+        }
+
+        // ✅ 1. Manage Course (Main Screen)
+        composable(
+            route = "tutor/manage_course/{activityId}",
+            arguments = listOf(navArgument("activityId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val activityId = backStackEntry.arguments?.getString("activityId") ?: return@composable
+
+            TutorCourseManagementScreen(
+                activityId = activityId,
+                navController = navController,
+                apiService = apiService,
+                activityViewModel = activitiesViewModel
+            )
+        }
+
+        // ✅ 2. Add Video
+        composable(
+            route = "tutor/add_video/{activityId}",
+            arguments = listOf(navArgument("activityId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val activityId = backStackEntry.arguments?.getString("activityId") ?: return@composable
+
+            AddVideoScreen(
+                activityId = activityId,
+                navController = navController,
+                apiService = apiService
+            )
+        }
+
+        // ✅ 3. Add Resource (needs videoId)
+        composable(
+            route = "tutor/add_resource/{activityId}/{videoId}",
+            arguments = listOf(
+                navArgument("activityId") { type = NavType.StringType },
+                navArgument("videoId") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val activityId = backStackEntry.arguments?.getString("activityId") ?: return@composable
+            val videoId = backStackEntry.arguments?.getString("videoId") ?: return@composable
+
+            AddResourceScreen(
+                activityId = activityId,
+                videoId = videoId,
+                navController = navController,
+                apiService = apiService
+            )
+        }
+
+        // ✅ 4. Edit Meeting
+        composable(
+            route = "tutor/edit_meeting/{activityId}",
+            arguments = listOf(navArgument("activityId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val activityId = backStackEntry.arguments?.getString("activityId") ?: return@composable
+
+            EditMeetingScreen(
+                activityId = activityId,
+                navController = navController,
+                apiService = apiService
+            )
         }
     }
 }

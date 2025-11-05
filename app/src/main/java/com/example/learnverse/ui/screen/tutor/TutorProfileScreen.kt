@@ -322,22 +322,22 @@ fun CollapsingTutorHeader(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceEvenly
                 ) {
-                    StatItem(
+                    ContentStatItem(
                         icon = Icons.Default.People,
                         value = followersCount.toString(),
                         label = "Followers"
                     )
-                    StatItem(
+                    ContentStatItem(
                         icon = Icons.Default.PersonAdd,
                         value = followingCount.toString(),
                         label = "Following"
                     )
-                    StatItem(
+                    ContentStatItem(
                         icon = Icons.Default.School,
                         value = studentsCount.toString(),
                         label = "Students"
                     )
-                    StatItem(
+                    ContentStatItem(
                         icon = Icons.Default.MenuBook,
                         value = coursesCount.toString(),
                         label = "Courses"
@@ -540,14 +540,28 @@ fun TutorPostsTab(
     }
 }
 
+// ✅ CHANGE THIS IN CourseAnalyticsTab.kt
 @Composable
-fun StatItem(icon: androidx.compose.ui.graphics.vector.ImageVector, value: String, label: String) {
+fun ContentStatItem(  // ✅ Changed name
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    value: String,
+    label: String
+) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        Icon(icon, null, tint = MaterialTheme.colorScheme.primary)
-        Text(value, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        Icon(
+            icon,
+            contentDescription = null,
+            modifier = Modifier.size(32.dp),
+            tint = MaterialTheme.colorScheme.primary
+        )
+        Text(
+            value,
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold
+        )
         Text(
             label,
             style = MaterialTheme.typography.bodySmall,
@@ -555,6 +569,7 @@ fun StatItem(icon: androidx.compose.ui.graphics.vector.ImageVector, value: Strin
         )
     }
 }
+
 
 @Composable
 fun ProfileSection(title: String, content: @Composable () -> Unit) {
