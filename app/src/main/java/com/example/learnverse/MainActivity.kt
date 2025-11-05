@@ -45,6 +45,7 @@ import com.example.learnverse.data.remote.ApiClient
 import com.example.learnverse.data.remote.ApiService
 import com.example.learnverse.data.repository.*
 import com.example.learnverse.ui.screen.admin.AdminDashboardScreen
+import com.example.learnverse.ui.screen.admin.VerificationDetailScreen
 import com.example.learnverse.ui.screen.auth.InterestSelectionDialog
 import com.example.learnverse.ui.screen.auth.LoginScreen
 import com.example.learnverse.ui.screen.auth.SignUpScreen
@@ -691,6 +692,15 @@ fun AdminNavGraph(authViewModel: AuthViewModel, adminViewModel: AdminViewModel) 
     NavHost(navController = navController, startDestination = "admin_dashboard") {
         composable("admin_dashboard") {
             AdminDashboardScreen(navController, adminViewModel, authViewModel)
+        }
+
+        composable("verificationDetail/{verificationId}") { backStackEntry ->
+            val verificationId = backStackEntry.arguments?.getString("verificationId") ?: return@composable
+            VerificationDetailScreen(
+                verificationId = verificationId,
+                navController = navController,
+                adminViewModel = adminViewModel
+            )
         }
     }
 }
