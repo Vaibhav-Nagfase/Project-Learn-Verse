@@ -300,18 +300,6 @@ fun HomeScreen(
                         }
                     }
 
-                    // 4. Featured Activities
-                    if (feed.featured.isNotEmpty()) {
-                        item {
-                            FeaturedSection(
-                                activities = feed.featured,
-                                onActivityClick = { activity ->
-                                    navController.navigate("activityDetail/${activity.id}")
-                                }
-                            )
-                        }
-                    }
-
                     // 5. Recommended For You
                     if (feed.recommended.isNotEmpty()) {
                         item {
@@ -483,13 +471,27 @@ fun SearchCard(searchQuery: String, onQueryChange: (String) -> Unit, onSearch: (
     }
 
 
+    // 🔥 ADDED: elevation for shadow effect
     Card(
         shape = RoundedCornerShape(20.dp),
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = 6.dp
+        ),
         colors = CardDefaults.cardColors(containerColor = Color(0xFFE0F7FA))
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text("Find an Activity", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-            Text("as per your interest", style = MaterialTheme.typography.titleMedium)
+            // 🔥 FIXED: Text color to black for visibility
+            Text(
+                "Find an Activity",
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+                color = Color.Black // 🔥 Black text for visibility in both themes
+            )
+            Text(
+                "as per your interest",
+                style = MaterialTheme.typography.titleMedium,
+                color = Color.Black.copy(alpha = 0.7f) // 🔥 Black text with slight transparency
+            )
             Spacer(modifier = Modifier.height(16.dp))
             OutlinedTextField(
                 value = searchQuery,
@@ -507,7 +509,10 @@ fun SearchCard(searchQuery: String, onQueryChange: (String) -> Unit, onSearch: (
                         Icon(
                             Icons.Default.Mic,
                             contentDescription = "Speak to search",
-                            tint = if (recordAudioPermissionState.status.isGranted) MaterialTheme.colorScheme.primary else Color.Gray // Optional: Change color based on permission
+                            tint = if (recordAudioPermissionState.status.isGranted)
+                                MaterialTheme.colorScheme.primary
+                            else
+                                Color.Gray
                         )
                     }
                 },
@@ -519,36 +524,204 @@ fun SearchCard(searchQuery: String, onQueryChange: (String) -> Unit, onSearch: (
     }
 }
 
+// 🔥 COMPLETELY REDESIGNED: NearbyActivityCard with actual image and modern UI
 @Composable
 fun NearbyActivityCard(activity: Activity, onClick: () -> Unit) {
     Card(
         modifier = Modifier
-            .width(220.dp)
-            .clickable { onClick() }
+            .width(280.dp)
+            .clickable { onClick() },
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        border = BorderStroke(
+            width = 1.dp,
+            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
+        )
     ) {
         Column {
+            // 🔥 NEW: Banner Image with actual URL
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(120.dp)
-                    .background(MaterialTheme.colorScheme.secondaryContainer),
-                contentAlignment = Alignment.Center
+                    .height(140.dp)
             ) {
-                Text("Image", color = MaterialTheme.colorScheme.onSecondaryContainer) // Placeholder for Image
+                if (!activity.bannerImageUrl.isNullOrEmpty()) {
+                    AsyncImage(
+                        model = activity.bannerImageUrl,
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    // Fallback gradient background
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(
+                                Brush.verticalGradient(
+                                    colors = listOf(
+                                        MaterialTheme.colorScheme.primaryContainer,
+                                        MaterialTheme.colorScheme.secondaryContainer
+                                    )
+                                )
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            Icons.Default.School,
+                            contentDescription = null,
+                            modifier = Modifier.size(48.dp),
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.6f)
+                        )
+                    }
+                }
+
+                // 🔥 NEW: Tags overlay
+                if (!activity.tags.isNullOrEmpty()) {
+                    Row(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        activity.tags.take(1).forEach { tag ->
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
+                                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.95f)
+                            ) {
+                                Text(
+                                    text = tag,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Medium,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp),
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // 🔥 NEW: Mode badge at bottom left
+                activity.mode?.let { mode ->
+                    Surface(
+                        shape = RoundedCornerShape(topEnd = 8.dp),
+                        color = if (mode.equals("Online", ignoreCase = true))
+                            MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.95f)
+                        else
+                            MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.95f),
+                        modifier = Modifier
+                            .align(Alignment.BottomStart)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Icon(
+                                if (mode.equals("Online", ignoreCase = true))
+                                    Icons.Default.Laptop
+                                else
+                                    Icons.Default.LocationOn,
+                                contentDescription = null,
+                                modifier = Modifier.size(14.dp),
+                                tint = if (mode.equals("Online", ignoreCase = true))
+                                    MaterialTheme.colorScheme.onTertiaryContainer
+                                else
+                                    MaterialTheme.colorScheme.onSecondaryContainer
+                            )
+                            Text(
+                                text = mode,
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Medium,
+                                color = if (mode.equals("Online", ignoreCase = true))
+                                    MaterialTheme.colorScheme.onTertiaryContainer
+                                else
+                                    MaterialTheme.colorScheme.onSecondaryContainer
+                            )
+                        }
+                    }
+                }
             }
-            Column(Modifier.padding(12.dp)) {
+
+            // 🔥 NEW: Content section
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(12.dp)
+            ) {
+                // Title
                 Text(
                     text = activity.title,
                     style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(text = activity.tutorName, style = MaterialTheme.typography.bodySmall, color = Color.Gray, maxLines = 1)
+
+                Spacer(modifier = Modifier.height(6.dp))
+
+                // Tutor info
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(24.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primaryContainer),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = activity.tutorName.firstOrNull()?.uppercase() ?: "T",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    }
+
+                    Text(
+                        text = activity.tutorName,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                activity.reviews?.averageRating?.let { rating ->
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(3.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Star,
+                            contentDescription = "Rating",
+                            modifier = Modifier.size(16.dp),
+                            tint = Color(0xFFFFA000)
+                        )
+                        Text(
+                            text = String.format("%.1f", rating),
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "(${activity.reviews?.totalReviews ?: 0})",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
             }
         }
     }
 }
+
 
 @Composable
 fun BottomNavigationBar(navController: NavController) {
@@ -612,154 +785,6 @@ fun CategoriesSection(
                     onClick = { onCategoryClick(categories[index]) },
                     label = { Text(categories[index].capitalize()) }
                 )
-            }
-        }
-    }
-}
-
-@Composable
-fun FeaturedSection(
-    activities: List<Activity>,
-    onActivityClick: (Activity) -> Unit
-) {
-    Column() {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    Icons.Default.Star,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(24.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    "Featured",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-        }
-        Spacer(modifier = Modifier.height(12.dp))
-        LazyRow(
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            items(activities.size) { index ->
-                FeaturedActivityCard(
-                    activity = activities[index],
-                    onClick = { onActivityClick(activities[index]) }
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun FeaturedActivityCard(
-    activity: Activity,
-    onClick: () -> Unit
-) {
-    Card(
-        modifier = Modifier
-            .width(300.dp)
-            .clickable(onClick = onClick),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer
-        )
-    ) {
-        Column {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(160.dp)
-                    .background(MaterialTheme.colorScheme.secondaryContainer),
-                contentAlignment = Alignment.Center
-            ) {
-                // Add banner image here if available
-                if (!activity.bannerImageUrl.isNullOrEmpty()) {
-                    AsyncImage(
-                        model = activity.bannerImageUrl,
-                        contentDescription = null,
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
-                    )
-                } else {
-                    Icon(
-                        Icons.Default.School,
-                        contentDescription = null,
-                        modifier = Modifier.size(64.dp),
-                        tint = MaterialTheme.colorScheme.onSecondaryContainer
-                    )
-                }
-
-                // Featured badge
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.TopStart)
-                        .padding(8.dp)
-                        .background(
-                            MaterialTheme.colorScheme.primary,
-                            RoundedCornerShape(8.dp)
-                        )
-                        .padding(horizontal = 12.dp, vertical = 6.dp)
-                ) {
-                    Text(
-                        "FEATURED",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onPrimary,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
-
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text(
-                    text = activity.title ?: "",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        Icons.Default.Person,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = activity.tutorName ?: "",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                activity.reviews?.averageRating?.let { rating ->
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            Icons.Default.Star,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp),
-                            tint = Color(0xFFFFA000)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            String.format("%.1f", rating),
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            " (${activity.reviews?.totalReviews ?: 0})",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
             }
         }
     }

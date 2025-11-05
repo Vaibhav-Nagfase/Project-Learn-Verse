@@ -23,15 +23,27 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.navigation.NavController
 import com.example.learnverse.R // Add your own image to res/drawable
 import com.example.learnverse.viewmodel.LoginUiState
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.ui.text.input.VisualTransformation
+// ✅ ADD THESE:
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.material.icons.filled.Email
 
+
+
+
+// 🔥 IMPROVED: LoginScreen with password visibility toggle
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun LoginScreen(
-    navController: NavController,
-    viewModel: AuthViewModel
-) {
+fun LoginScreen(navController: NavController, viewModel: AuthViewModel) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    // Observe the new UI state for this screen
+    var passwordVisible by remember { mutableStateOf(false) } // 🔥 NEW: Password visibility state
+
     val loginUiState by viewModel.loginUiState.collectAsState()
 
     Box(
@@ -42,68 +54,100 @@ fun LoginScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(32.dp)
-                .verticalScroll(rememberScrollState()) // 1. Make the Column scrollable
-                .imePadding(),                         // 2. Add padding when the keyboard is open
+                .verticalScroll(rememberScrollState())
+                .imePadding(),
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             // 1. Illustration
             Image(
-                painter = painterResource(id = R.drawable.login_img), // Replace with your image
+                painter = painterResource(id = R.drawable.login_img),
                 contentDescription = "Sign In Illustration",
                 modifier = Modifier.size(220.dp),
                 contentScale = ContentScale.Fit
             )
+
             Spacer(modifier = Modifier.height(24.dp))
 
             // 2. Title
-            Text(text = "Sign In", fontSize = 28.sp, fontWeight = FontWeight.Bold)
+            Text(
+                text = "Sign In",
+                fontSize = 28.sp,
+                fontWeight = FontWeight.Bold
+            )
+
             Spacer(modifier = Modifier.height(8.dp))
 
             // 3. Subtitle
             Text(
-                text = "Enter valid user name & password to continue",
+                text = "Enter your credentials to continue",
                 style = MaterialTheme.typography.bodyMedium,
                 color = Color.Gray
             )
+
             Spacer(modifier = Modifier.height(24.dp))
 
-            // 4. Email/Username TextField
+            // 4. Email TextField
             OutlinedTextField(
                 value = email,
                 onValueChange = { email = it },
                 label = { Text("Email") },
-                leadingIcon = { Icon(Icons.Default.Person, contentDescription = "User icon") },
+                leadingIcon = {
+                    Icon(Icons.Default.Person, contentDescription = "Email icon")
+                },
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier.fillMaxWidth()
             )
+
             Spacer(modifier = Modifier.height(16.dp))
 
-            // 5. Password TextField
+            // 🔥 5. Password TextField with visibility toggle
             OutlinedTextField(
                 value = password,
                 onValueChange = { password = it },
                 label = { Text("Password") },
-                leadingIcon = { Icon(Icons.Default.Lock, contentDescription = "Password icon") },
+                leadingIcon = {
+                    Icon(Icons.Default.Lock, contentDescription = "Password icon")
+                },
+                // 🔥 NEW: Visibility toggle icon
+                trailingIcon = {
+                    IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                        Icon(
+                            imageVector = if (passwordVisible)
+                                Icons.Default.Visibility
+                            else
+                                Icons.Default.VisibilityOff,
+                            contentDescription = if (passwordVisible) "Hide password" else "Show password",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                },
                 shape = RoundedCornerShape(12.dp),
-                visualTransformation = PasswordVisualTransformation(),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                // 🔥 Toggle between PasswordVisualTransformation and NoPasswordTransformation
+                visualTransformation = if (passwordVisible)
+                    VisualTransformation.None
+                else
+                    PasswordVisualTransformation()
             )
+
             Spacer(modifier = Modifier.height(24.dp))
 
             // 6. Login Button
             Button(
                 onClick = { viewModel.login(email, password) },
                 shape = RoundedCornerShape(12.dp),
-                // The button is only disabled when the UI state is loading
                 enabled = loginUiState !is LoginUiState.Loading,
-                modifier = Modifier.fillMaxWidth().height(50.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(50.dp)
             ) {
                 Text(
                     text = if (loginUiState is LoginUiState.Loading) "Logging in..." else "Login",
                     fontSize = 16.sp
                 )
             }
+
             Spacer(modifier = Modifier.height(16.dp))
 
             // 7. Error Message
@@ -111,14 +155,15 @@ fun LoginScreen(
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
                     text = (loginUiState as LoginUiState.Error).message,
-                    color = MaterialTheme.colorScheme.error
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodyMedium
                 )
             }
 
-            // 8. Clickable Sign Up Text
-            ClickableLoginText {
-                navController.navigate("signup")
-            }
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // 8. Sign Up Link
+            ClickableLoginText(onSignUpClicked = { navController.navigate("signup") })
         }
     }
 }
