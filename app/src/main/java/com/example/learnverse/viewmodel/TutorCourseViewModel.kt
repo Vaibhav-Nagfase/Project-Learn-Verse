@@ -84,6 +84,19 @@ class TutorCourseViewModel(
         }
     }
 
+    fun deleteCourse(onSuccess: () -> Unit) {
+        viewModelScope.launch {
+            try {
+                repository.deleteCourse(activityId)
+                showMessage("Course deleted successfully")
+                onSuccess()
+            } catch (e: Exception) {
+                showMessage("Failed to delete course: ${e.message}")
+                Log.e("TutorCourseVM", "Error deleting course", e)
+            }
+        }
+    }
+
     private fun showMessage(message: String) {
         _actionMessage.value = message
     }

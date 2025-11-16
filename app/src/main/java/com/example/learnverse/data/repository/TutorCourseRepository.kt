@@ -34,6 +34,13 @@ class TutorCourseRepository(
         throw Exception("Failed to load stats: ${response.message()}")
     }
 
+    suspend fun deleteCourse(activityId: String) {
+        val response = apiService.deleteActivity(activityId)
+        if (!response.isSuccessful) {
+            throw Exception("Failed to delete course: ${response.message()}")
+        }
+    }
+
     // Update course status
     suspend fun updateCourseStatus(activityId: String, isActive: Boolean?, isPublic: Boolean?) {
         val status = mutableMapOf<String, Boolean>()

@@ -233,18 +233,80 @@ fun ActivityCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick),  // ✅ Keep card clickable
+            .clickable(onClick = onClick),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column {
             Box {
-                // Content
                 Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        // Active/Inactive Badge
+                        val isActive = activity.isActive ?: true
+                        AssistChip(
+                            onClick = { },
+                            label = {
+                                Text(
+                                    if (isActive) "Active" else "Inactive",
+                                    style = MaterialTheme.typography.labelSmall
+                                )
+                            },
+                            leadingIcon = {
+                                Icon(
+                                    if (isActive) Icons.Default.CheckCircle else Icons.Default.Cancel,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            },
+                            colors = AssistChipDefaults.assistChipColors(
+                                containerColor = if (isActive)
+                                    Color(0xFF10B981).copy(alpha = 0.15f)
+                                else
+                                    Color(0xFFEF4444).copy(alpha = 0.15f),
+                                labelColor = if (isActive) Color(0xFF10B981) else Color(0xFFEF4444),
+                                leadingIconContentColor = if (isActive) Color(0xFF10B981) else Color(0xFFEF4444)
+                            ),
+                            modifier = Modifier.height(28.dp)
+                        )
+
+                        // Public/Private Badge
+                        val isPublic = activity.isPublic ?: true
+                        AssistChip(
+                            onClick = { },
+                            label = {
+                                Text(
+                                    if (isPublic) "Public" else "Private",
+                                    style = MaterialTheme.typography.labelSmall
+                                )
+                            },
+                            leadingIcon = {
+                                Icon(
+                                    if (isPublic) Icons.Default.Public else Icons.Default.Lock,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            },
+                            colors = AssistChipDefaults.assistChipColors(
+                                containerColor = if (isPublic)
+                                    Color(0xFF6366F1).copy(alpha = 0.15f)
+                                else
+                                    Color(0xFF64748B).copy(alpha = 0.15f),
+                                labelColor = if (isPublic) Color(0xFF6366F1) else Color(0xFF64748B),
+                                leadingIconContentColor = if (isPublic) Color(0xFF6366F1) else Color(0xFF64748B)
+                            ),
+                            modifier = Modifier.height(28.dp)
+                        )
+                    }
+
                     Text(
                         activity.title,
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(end = 40.dp) // Space for menu
+                        modifier = Modifier.padding(end = 40.dp)
                     )
                     Spacer(Modifier.height(8.dp))
                     Text(
@@ -270,7 +332,7 @@ fun ActivityCard(
                     }
                 }
 
-                // ✅ Keep Edit/Delete menu
+                // Edit/Delete menu
                 Box(
                     modifier = Modifier
                         .align(Alignment.TopEnd)
@@ -310,7 +372,6 @@ fun ActivityCard(
                 }
             }
 
-            // ✅ Manage Course Footer
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),

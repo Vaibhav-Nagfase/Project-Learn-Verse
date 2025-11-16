@@ -17,13 +17,15 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.navigation.NavController
 import com.example.learnverse.data.model.Activity
 import com.example.learnverse.viewmodel.TutorCourseViewModel
 
 @Composable
 fun CourseSettingsTab(
     activity: Activity,
-    viewModel: TutorCourseViewModel
+    viewModel: TutorCourseViewModel,
+    navController: NavController
 ) {
     var isActive by remember { mutableStateOf(activity.isActive ?: true) }
     var isPublic by remember { mutableStateOf(activity.isPublic ?: true) }
@@ -86,7 +88,11 @@ fun CourseSettingsTab(
             onDismiss = { showDeleteDialog = false },
             onConfirm = {
                 showDeleteDialog = false
-                // TODO: Implement delete
+                viewModel.deleteCourse(
+                    onSuccess = {
+                        navController.popBackStack("tutor_dashboard_main", inclusive = false)
+                    }
+                )
             }
         )
     }

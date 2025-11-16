@@ -140,7 +140,8 @@ fun TutorCourseManagementScreen(
                             )
                             2 -> CourseSettingsTab(
                                 activity = state.data.activity,
-                                viewModel = viewModel
+                                viewModel = viewModel,
+                                navController = navController
                             )
                             3 -> CourseAnalyticsTab(
                                 stats = state.data.stats
