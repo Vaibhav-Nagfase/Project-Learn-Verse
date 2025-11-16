@@ -198,7 +198,7 @@ fun ActivityDetailScreen(
 
         // Tabs
         TabRow(selectedTabIndex = pagerState.currentPage) {
-            listOf("Info", "Videos", "Meeting", "Reviews").forEachIndexed { index, title ->
+            listOf("Info", "Reviews").forEachIndexed { index, title ->
                 Tab(
                     selected = pagerState.currentPage == index,
                     onClick = { coroutineScope.launch { pagerState.animateScrollToPage(index) } },
@@ -208,7 +208,7 @@ fun ActivityDetailScreen(
         }
 
         // Tab Content - FABs are handled INSIDE each tab
-        HorizontalPager(count = 4, state = pagerState, modifier = Modifier.fillMaxSize()) { page ->
+        HorizontalPager(count = 2, state = pagerState, modifier = Modifier.fillMaxSize()) { page ->
             when (page) {
                 0 -> ActivityInfoTab(
                     activity = activity!!,
@@ -217,20 +217,20 @@ fun ActivityDetailScreen(
                     onEnroll = {
                         navController.navigate("enrollment/${activity!!.id}")
                     })
-                1 -> VideosTab(
-                    activity = activity!!,
-                    isTutor = isTutor,
-                    isEnrolled = isEnrolled,
-                    navController = navController,
-                    viewModel = activitiesViewModel
-                )
-                2 -> MeetingTab(
-                    activity = activity!!,
-                    isTutor = isTutor,
-                    isEnrolled = isEnrolled,
-                    viewModel = activitiesViewModel
-                )
-                3 -> ReviewsTab(activity!!, authViewModel, activitiesViewModel)
+//                1 -> VideosTab(
+//                    activity = activity!!,
+//                    isTutor = isTutor,
+//                    isEnrolled = isEnrolled,
+//                    navController = navController,
+//                    viewModel = activitiesViewModel
+//                )
+//                2 -> MeetingTab(
+//                    activity = activity!!,
+//                    isTutor = isTutor,
+//                    isEnrolled = isEnrolled,
+//                    viewModel = activitiesViewModel
+//                )
+                1 -> ReviewsTab(activity!!, authViewModel, activitiesViewModel)
             }
         }
     }
