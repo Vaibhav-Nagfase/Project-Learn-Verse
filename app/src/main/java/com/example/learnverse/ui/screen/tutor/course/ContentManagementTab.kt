@@ -292,7 +292,8 @@ fun ContentManagementTab(
                 }
             },
             isUploading = isUploading,
-            uploadProgress = uploadProgress
+            uploadProgress = uploadProgress,
+            viewModel = activityViewModel
         )
     }
 

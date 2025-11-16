@@ -236,7 +236,8 @@ fun VideosTab(
                 )
             },
             isUploading = isUploadingVideo,
-            uploadProgress = uploadProgress
+            uploadProgress = uploadProgress,
+            viewModel = viewModel
         )
     }
 

@@ -17,6 +17,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.example.learnverse.viewmodel.ActivitiesViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -28,7 +29,8 @@ fun AddVideoDialog(
     onAddWithUrl: (String, String, String, Int, Boolean) -> Unit,
     onUploadFile: (Uri, String, String, Int, Boolean) -> Unit,
     isUploading: Boolean,
-    uploadProgress: Int
+    uploadProgress: Int,
+    viewModel: ActivitiesViewModel
 ) {
     val context = LocalContext.current
 
@@ -40,6 +42,9 @@ fun AddVideoDialog(
     var uploadMode by remember { mutableStateOf("url") } // "url" or "file"
     var selectedVideoUri by remember { mutableStateOf<Uri?>(null) }
     var selectedFileName by remember { mutableStateOf<String?>(null) }
+
+    val isUploading by viewModel.isUploadingVideo.collectAsState()
+    val uploadProgress by viewModel.uploadProgress.collectAsState()
 
     // Video file picker
     val videoPickerLauncher = rememberLauncherForActivityResult(
@@ -277,20 +282,40 @@ fun AddVideoDialog(
                 // Upload progress
                 if (isUploading) {
                     Spacer(modifier = Modifier.height(16.dp))
-
-                    Column {
-                        LinearProgressIndicator(
-                            progress = uploadProgress / 100f,
-                            modifier = Modifier.fillMaxWidth()
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer
                         )
-
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        Text(
-                            text = "Uploading... $uploadProgress%",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.primary
-                        )
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    "Uploading video...",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                Text(
+                                    "${(uploadProgress)}%",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                            Spacer(Modifier.height(8.dp))
+                            LinearProgressIndicator(
+                                progress = { uploadProgress.toFloat() / 100 },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(8.dp)
+                            )
+                        }
                     }
                 }
 

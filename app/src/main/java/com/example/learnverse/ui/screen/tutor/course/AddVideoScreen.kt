@@ -295,7 +295,7 @@ fun AddVideoScreen(
                                 color = MaterialTheme.colorScheme.onSecondaryContainer
                             )
                             Text(
-                                "$uploadProgress%",
+                                "${(uploadProgress)}%",
                                 style = MaterialTheme.typography.bodyLarge,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.primary
@@ -303,7 +303,7 @@ fun AddVideoScreen(
                         }
                         Spacer(Modifier.height(8.dp))
                         LinearProgressIndicator(
-                            progress = { uploadProgress / 100f },
+                            progress = { uploadProgress.toFloat() },
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(8.dp),
