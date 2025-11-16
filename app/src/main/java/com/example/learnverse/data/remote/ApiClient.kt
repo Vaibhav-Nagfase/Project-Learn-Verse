@@ -9,16 +9,17 @@ import java.util.concurrent.TimeUnit
 
 class ApiClient(context: Context) {
 
-    // --- CHANGE 1: Made okHttpClient public ---
     val okHttpClient: OkHttpClient
-    val retrofit: Retrofit // Also expose Retrofit for easier access in MainActivity
+    val retrofit: Retrofit
+
+    // ✅ ADD THIS: Create the ApiService
+    val apiService: ApiService
 
     companion object {
         @Volatile
-        private var INSTANCE: ApiClient? = null // Store the ApiClient instance
+        private var INSTANCE: ApiClient? = null
         private const val BASE_URL = "https://learnverse-sy8l.onrender.com/"
 
-        // Updated getInstance to return the ApiClient itself
         fun getInstance(context: Context): ApiClient {
             return INSTANCE ?: synchronized(this) {
                 ApiClient(context.applicationContext).also { INSTANCE = it }
@@ -31,24 +32,24 @@ class ApiClient(context: Context) {
             level = HttpLoggingInterceptor.Level.HEADERS
         }
         val authInterceptor = AuthInterceptor(context)
-
         val authenticator = TokenAuthenticator(context, this)
 
-        // --- CHANGE 2: Increased connectTimeout to 60 seconds ---
-        okHttpClient = OkHttpClient.Builder() // Assign to the public property
+        okHttpClient = OkHttpClient.Builder()
             .addInterceptor(logging)
             .addInterceptor(authInterceptor)
             .authenticator(authenticator)
-            .connectTimeout(60, TimeUnit.SECONDS) // Increased from 30
+            .connectTimeout(60, TimeUnit.SECONDS)
             .readTimeout(300, TimeUnit.SECONDS)
             .writeTimeout(300, TimeUnit.SECONDS)
             .build()
 
         retrofit = Retrofit.Builder()
             .baseUrl(BASE_URL)
-            .client(okHttpClient) // Use the same client instance
+            .client(okHttpClient)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
+
+        // ✅ ADD THIS: Initialize ApiService from Retrofit
+        apiService = retrofit.create(ApiService::class.java)
     }
 }
-

@@ -170,7 +170,7 @@ fun EnhancedDiscoverScreen(
                                 onEditClick = { navController.navigate("createPost?postId=${post.id}") },
                                 onDeleteClick = { /* TODO: Delete dialog */ },
                                 videoVisibilityTracker = videoVisibilityTracker,
-                                modifier = Modifier.animateItemPlacement()
+                                modifier = Modifier.animateItem()
                             )
                         }
 

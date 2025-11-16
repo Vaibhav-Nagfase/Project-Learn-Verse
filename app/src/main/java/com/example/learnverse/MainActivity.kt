@@ -647,7 +647,7 @@ fun TutorNavGraph(
             AddVideoScreen(
                 activityId = activityId,
                 navController = navController,
-                apiService = apiService
+                viewModel = activitiesViewModel
             )
         }
 
